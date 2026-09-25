@@ -1,0 +1,4 @@
+.streamlit/
+registros_carga.csv
+__pycache__/
+*.pyc
