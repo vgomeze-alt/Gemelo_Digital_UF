@@ -1064,10 +1064,8 @@ def documentacion():
     import glob
     st.write("# Documentación")
 
-    # Carpeta del manual (PDF)
-    CARPETA_DOCS = r"C:\Users\valer\Downloads\UF\Multimedia\Documentacion"
-    # Carpeta de los diagramas de flujo (imágenes)
-    CARPETA_IMAGENES = r"C:\Users\valer\Downloads\UF\Multimedia\Imagenes"
+    CARPETA_DOCS = "Multimedia/Documentacion"
+    CARPETA_IMAGENES = "Multimedia/Imagenes"
 
     # El manual se busca por su nombre base, sin depender de la extensión exacta.
     # Esto evita problemas cuando Windows oculta la extensión o el nombre termina
