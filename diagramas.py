@@ -94,9 +94,12 @@ def diagrama_practica():
     RO = 'fillcolor="#FFF5F5" color="#E53E3E"'   # Cierre
     GR = 'fillcolor="#EDF2F7"'                   # Pasos auxiliares
 
+    # Con líneas rectas (ortho) las etiquetas se ponen con xlabel
+    SIX = 'xlabel="Sí" color="#38A169" fontcolor="#38A169"'
+    NOX = 'xlabel="No" color="#E53E3E" fontcolor="#E53E3E"'
+
     return _dot(rf'''
-    newrank=true;
-    nodesep=0.45; ranksep=0.5;
+    newrank=true; splines=ortho; nodesep=0.6; ranksep=0.6;
 
     h1 [label="1. Montaje" shape=plaintext style="" fontsize=14 fontcolor="#2B6CB0"];
     h2 [label="2. Arranque y toma de datos" shape=plaintext style="" fontsize=14 fontcolor="#2F855A"];
@@ -156,28 +159,28 @@ def diagrama_practica():
     // ---- Columna 1: montaje (baja)
     ini -> v -> c1 -> c2 -> c3 -> A -> v12 -> aj;
     aj -> q1;
-    q1 -> aj:s [{NO} constraint=false];
+    q1 -> aj [{NOX} constraint=false];
 
     // ---- Columna 2: arranque y toma de datos (sube)
-    ap -> q1 [dir=back {SI}];
+    ap -> q1 [dir=back {SIX}];
     q2 -> ap [dir=back];
-    td -> q2 [dir=back {SI}];
+    td -> q2 [dir=back {SIX}];
     brix -> td [dir=back];
     q3 -> brix [dir=back];
-    q2 -> ver [{NO} constraint=false];
+    q2 -> ver [{NOX} constraint=false];
     ver -> A [constraint=false style=dashed];
-    q3 -> cont [{NO} constraint=false];
+    q3 -> cont [{NOX} constraint=false];
     cont -> q3 [constraint=false style=dashed];
     nota -> td [style=dashed dir=none constraint=false];
 
     // ---- Columna 3: limpieza (baja)
-    q3 -> lp [{SI} constraint=false];
+    q3 -> lp [{SIX} constraint=false];
     lp -> ce -> naoh -> dn -> pg -> q4;
-    rep -> q4 [dir=back {NO} constraint=false];
+    rep -> q4 [dir=back {NOX} constraint=false];
     rep -> naoh [constraint=false style=dashed];
 
     // ---- Columna 4: cierre (sube)
-    q4 -> s1 [{SI} constraint=false];
+    q4 -> s1 [{SIX} constraint=false];
     s2 -> s1 [dir=back];
     s3 -> s2 [dir=back];
     s4 -> s3 [dir=back];
