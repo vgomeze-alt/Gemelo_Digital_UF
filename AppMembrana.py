@@ -1062,21 +1062,16 @@ def simulacion():
 def documentacion():
     import os
     import glob
+    from diagramas import diagrama_lactosuero, diagrama_purga, diagrama_practica
+
     st.write("# Documentación")
 
     CARPETA_DOCS = "Multimedia/Documentacion"
-    CARPETA_IMAGENES = "Multimedia/Imagenes"
 
     # El manual se busca por su nombre base, sin depender de la extensión exacta.
     # Esto evita problemas cuando Windows oculta la extensión o el nombre termina
     # en un punto (p. ej. "Manual_Ultrafiltracion_Lactosuero..pdf").
     NOMBRE_BASE_MANUAL = "Manual_Ultrafiltracion_Lactosuero"
-
-    NOMBRES_DIAGRAMAS = [
-        "diagrama_flujo_1.png",
-        "diagrama_flujo_2.png",
-        "diagrama_flujo_3.png",
-    ]
 
     def buscar_manual():
         """Devuelve la ruta del manual buscándolo por nombre base en la carpeta."""
@@ -1099,6 +1094,7 @@ def documentacion():
         if st.button("Diagramas de Flujo", width="stretch"):
             st.session_state.doc_actual = "diagramas"
 
+    # ------------------------------------------------------------------ INICIO
     if st.session_state.doc_actual is None:
         st.info(
             "📄 Aquí encontrarás la documentación técnica del equipo de "
@@ -1109,6 +1105,7 @@ def documentacion():
             "arriba para verla."
         )
 
+    # ------------------------------------------------------------------ MANUAL
     elif st.session_state.doc_actual == "manual":
         ruta_manual = buscar_manual()
         if ruta_manual:
@@ -1144,41 +1141,27 @@ def documentacion():
             else:
                 st.caption("La carpeta indicada no existe o no es accesible.")
 
+    # --------------------------------------------------------------- DIAGRAMAS
     elif st.session_state.doc_actual == "diagramas":
 
         st.subheader("Diagramas de flujo del proceso")
 
-        ancho_img = st.slider("Tamaño de las imágenes (px)", 300, 1000, 600, 50)
+        ancho = st.slider("Tamaño de los diagramas (px)", 300, 1000, 600, 50)
 
-        faltantes = []
+        def mostrar(dot, titulo):
+            st.markdown(f"##### {titulo}")
+            try:
+                st.graphviz_chart(dot, width=ancho)
+            except TypeError:  # versiones antiguas de Streamlit sin parámetro width
+                st.graphviz_chart(dot, use_container_width=True)
+            st.divider()
 
-        NOMBRES_CAPTIONS = [
-            "Diagrama de preparación del lactosuero",
-            "Diagrama del proceso de purga y limpieza de las líneas de rechazo y permeado",
-            "Diagrama de procedimiento de la práctica."
-        ]
-
-        for i, nombre in enumerate(NOMBRES_DIAGRAMAS):
-            ruta = os.path.join(CARPETA_IMAGENES, nombre)
-
-            if os.path.exists(ruta):
-                st.image(
-                    ruta,
-                    caption=NOMBRES_CAPTIONS[i],
-                    width=ancho_img
-                )
-            else:
-                faltantes.append(nombre)
-
-        if faltantes:
-            st.warning("No se encontraron estas imágenes en "
-                    f"{CARPETA_IMAGENES}:\n\n- " + "\n- ".join(faltantes))
-
-            if os.path.isdir(CARPETA_IMAGENES):
-                st.caption("Archivos que sí hay en esa carpeta:")
-                st.code("\n".join(os.listdir(CARPETA_IMAGENES)) or "(carpeta vacía)")
-            else:
-                st.caption("La carpeta de imágenes no existe o no es accesible.")
+        mostrar(diagrama_lactosuero(),
+                "1. Diagrama de preparación del lactosuero")
+        mostrar(diagrama_purga(),
+                "2. Diagrama del proceso de purga y limpieza de las líneas de rechazo y permeado")
+        mostrar(diagrama_practica(),
+                "3. Diagrama de procedimiento de la práctica")
 
 def guia_usuario():
     st.write("# Guía de Usuario")
