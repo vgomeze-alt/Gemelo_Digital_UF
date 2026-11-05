@@ -43,6 +43,8 @@ def diagrama_lactosuero():
 # ---------------------------------------------------------------- DIAGRAMA 2
 def diagrama_purga():
     return _dot(rf'''
+    nodesep=0.9; ranksep=0.5;
+
     ini [label="Inicio" {INICIO}];
     v [label="Verificar válvulas\ncerradas"];
     l [label="Conectar línea de agua\nal equipo"];
@@ -60,19 +62,28 @@ def diagrama_purga():
     fin [label="Fin" {FIN}];
 
     ini -> v -> l -> e -> p1 -> d1;
+
+    // Primera decisión: "No" sale por arriba, el retorno vuelve por abajo
     d1 -> p2 [{SI}];
-    d1 -> w1 [{NO}];
-    w1 -> d1;
+    d1:ne -> w1:nw [{NO} constraint=false];
+    w1:sw -> d1:se [constraint=false style=dashed];
+
     p2 -> d2;
+
+    // Segunda decisión
     d2 -> f [{SI}];
-    d2 -> w2 [{NO}];
-    w2 -> d2;
+    d2:ne -> w2:nw [{NO} constraint=false];
+    w2:sw -> d2:se [constraint=false style=dashed];
+
     f -> c1 -> c2 -> fin;
 
-    n1 -> d1 [style=dashed arrowhead=none];
-    {{rank=same; d1; n1; w1}}
+    // Nota a la izquierda, "Esperar" a la derecha
+    {{rank=same; n1; d1; w1}}
+    n1 -> d1 [style=dashed dir=none];
+    d1 -> w1 [style=invis weight=10];
+    {{rank=same; d2; w2}}
+    d2 -> w2 [style=invis weight=10];
     ''')
-
 
 # ---------------------------------------------------------------- DIAGRAMA 3
 def diagrama_practica():
