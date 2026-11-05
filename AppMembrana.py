@@ -1146,26 +1146,33 @@ def documentacion():
 
         st.subheader("Diagramas de flujo del proceso")
 
-        ancho = st.slider("Tamaño de los diagramas (px)", 300, 1000, 600, 50)
-
-        def mostrar(dot, titulo, ancho_completo=False):
-            st.markdown(f"##### {titulo}")
-            if ancho_completo:
+        def mostrar(dot, ancho=None):
+            """Dibuja el diagrama con ancho fijo en px, o a todo el ancho si ancho es None."""
+            if ancho is None:
                 st.graphviz_chart(dot, use_container_width=True)
             else:
                 try:
                     st.graphviz_chart(dot, width=ancho)
-                except TypeError:
+                except TypeError:  # versiones antiguas de Streamlit
                     st.graphviz_chart(dot, use_container_width=True)
-            st.divider()
 
-        mostrar(diagrama_lactosuero(),
-                "1. Diagrama de preparación del lactosuero")
-        mostrar(diagrama_purga(),
-                "2. Diagrama del proceso de purga y limpieza de las líneas de rechazo y permeado")
-        mostrar(diagrama_practica(),
-                "3. Diagrama de procedimiento de la práctica",
-                ancho_completo=True)
+        # --- Diagrama 1 (barra propia)
+        st.markdown("##### 1. Diagrama de preparación del lactosuero")
+        ancho1 = st.slider("Tamaño del diagrama 1 (px)", 300, 1000, 600, 50,
+                           key="ancho_diag_1")
+        mostrar(diagrama_lactosuero(), ancho1)
+        st.divider()
+
+        # --- Diagrama 2 (barra propia)
+        st.markdown("##### 2. Diagrama del proceso de purga y limpieza de las líneas de rechazo y permeado")
+        ancho2 = st.slider("Tamaño del diagrama 2 (px)", 300, 1000, 600, 50,
+                           key="ancho_diag_2")
+        mostrar(diagrama_purga(), ancho2)
+        st.divider()
+
+        # --- Diagrama 3 (ancho completo)
+        st.markdown("##### 3. Diagrama de procedimiento de la práctica")
+        mostrar(diagrama_practica())
 def guia_usuario():
     st.write("# Guía de Usuario")
     st.write("## Características y guía de operación del proceso")
