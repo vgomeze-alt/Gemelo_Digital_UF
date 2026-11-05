@@ -169,8 +169,8 @@ def diagrama_practica():
     q3 -> brix [dir=back];
     q2 -> ver [{NOX} constraint=false];
     ver -> A [constraint=false style=dashed];
-    q3 -> cont [{NOX} tailport=se headport=w constraint=false];
-    cont -> q3 [constraint=false style=dashed color="#718096" tailport=n headport=e];
+    q3 -> cont [{NOX} constraint=false];
+    cont -> q3 [constraint=false style=dashed];
     nota -> td [style=dashed dir=none constraint=false];
 
     // ---- Columna 3: limpieza (baja)
