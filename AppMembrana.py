@@ -1148,12 +1148,15 @@ def documentacion():
 
         ancho = st.slider("Tamaño de los diagramas (px)", 300, 1000, 600, 50)
 
-        def mostrar(dot, titulo):
+        def mostrar(dot, titulo, ancho_completo=False):
             st.markdown(f"##### {titulo}")
-            try:
-                st.graphviz_chart(dot, width=ancho)
-            except TypeError:  # versiones antiguas de Streamlit sin parámetro width
+            if ancho_completo:
                 st.graphviz_chart(dot, use_container_width=True)
+            else:
+                try:
+                    st.graphviz_chart(dot, width=ancho)
+                except TypeError:
+                    st.graphviz_chart(dot, use_container_width=True)
             st.divider()
 
         mostrar(diagrama_lactosuero(),
@@ -1161,8 +1164,8 @@ def documentacion():
         mostrar(diagrama_purga(),
                 "2. Diagrama del proceso de purga y limpieza de las líneas de rechazo y permeado")
         mostrar(diagrama_practica(),
-                "3. Diagrama de procedimiento de la práctica")
-
+                "3. Diagrama de procedimiento de la práctica",
+                ancho_completo=True)
 def guia_usuario():
     st.write("# Guía de Usuario")
     st.write("## Características y guía de operación del proceso")
