@@ -76,79 +76,99 @@ def diagrama_purga():
 
 # ---------------------------------------------------------------- DIAGRAMA 3
 def diagrama_practica():
+    # Colores por fase (columna)
+    AZ = 'fillcolor="#EBF8FF" color="#3182CE"'   # Montaje
+    VE = 'fillcolor="#F0FFF4" color="#38A169"'   # Arranque y toma de datos
+    NA = 'fillcolor="#FFFAF0" color="#DD6B20"'   # Limpieza
+    RO = 'fillcolor="#FFF5F5" color="#E53E3E"'   # Cierre
+    GR = 'fillcolor="#EDF2F7"'                   # Pasos auxiliares
+
     return _dot(rf'''
-    compound=true;
+    newrank=true;
+    nodesep=0.45; ranksep=0.5;
+
+    h1 [label="1. Montaje" shape=plaintext style="" fontsize=14 fontcolor="#2B6CB0"];
+    h2 [label="2. Arranque y toma de datos" shape=plaintext style="" fontsize=14 fontcolor="#2F855A"];
+    h3 [label="3. Limpieza" shape=plaintext style="" fontsize=14 fontcolor="#C05621"];
+    h4 [label="4. Cierre" shape=plaintext style="" fontsize=14 fontcolor="#C53030"];
+
     ini [label="Inicio" {INICIO}];
+    v [label="Verificar válvulas\ncerradas" {AZ}];
+    c1 [label="Conectar salida del\nrechazo al tanque\nde alimentación" {AZ}];
+    c2 [label="Conectar salida de\npermeado al tanque\nde recolección" {AZ}];
+    c3 [label="Conectar el tanque de\nalimentación al equipo" {AZ}];
+    A [label="(A) Abrir válvulas de\nentrada del lactosuero" {AZ}];
+    v12 [label="Abrir válvulas 1 y 2\nen el panel para iniciar\nla ultrafiltración" {AZ}];
+    aj [label="Ajustar flujo de\nentrada a ~6 L/min" {AZ}];
 
-    subgraph cluster_montaje {{
-        label="1. Montaje"; fontname="Helvetica"; fontcolor="#2B6CB0";
-        style="rounded,filled"; fillcolor="#EBF8FF"; color="#90CDF4";
-        v [label="Verificar válvulas\ncerradas"];
-        c1 [label="Conectar salida del rechazo\nal tanque de alimentación"];
-        c2 [label="Conectar salida de permeado\nal tanque de recolección"];
-        c3 [label="Conectar el tanque de\nalimentación al equipo"];
-    }}
+    q1 [label="¿El flujo es de\n~6 L/min en el rotámetro\nde alimentación?" {DECISION}];
+    ap [label="Abrir válvula de\npermeado ~2 vueltas" {VE}];
+    q2 [label="¿Las condiciones\nson adecuadas\npara iniciar?" {DECISION}];
+    td [label="Iniciar toma de datos\ncada 8 min." {VE}];
+    brix [label="Medir °Brix a muestra de\nalimentación, permeado\ny rechazo" {VE}];
+    q3 [label="¿Ensayo\nfinalizado?" {DECISION}];
 
-    subgraph cluster_arranque {{
-        label="2. Arranque"; fontname="Helvetica"; fontcolor="#2F855A";
-        style="rounded,filled"; fillcolor="#F0FFF4"; color="#9AE6B4";
-        A [label="(A) Abrir válvulas de entrada\ndel lactosuero"];
-        v12 [label="Abrir válvulas 1 y 2 en el panel\npara iniciar la ultrafiltración"];
-        aj [label="Ajustar flujo de\nentrada a ~6 L/min"];
-        q1 [label="¿El flujo es de ~6 L/min\nen el rotámetro\nde alimentación?" {DECISION}];
-        ap [label="Abrir válvula de\npermeado ~2 vueltas"];
-        q2 [label="¿Las condiciones son\nadecuadas para iniciar?" {DECISION}];
-        ver [label="Verificar desde (A)" fillcolor="#EDF2F7"];
-    }}
+    nota [label="Peso de permeado y rechazo,\npresión de entrada\ny de membrana" {NOTA}];
+    ver [label="Verificar\ndesde (A)" {GR}];
+    cont [label="Continuar toma de\ndatos hasta culminar" {GR}];
+    rep [label="Repetir a\npartir de (B)" {GR}];
 
-    subgraph cluster_datos {{
-        label="3. Toma de datos"; fontname="Helvetica"; fontcolor="#B7791F";
-        style="rounded,filled"; fillcolor="#FFFFF0"; color="#F6E05E";
-        td [label="Iniciar toma de datos\ncada 8 min."];
-        nota [label="Peso de permeado y rechazo,\npresión de entrada\ny de membrana" {NOTA}];
-        brix [label="Medir °Brix a muestra de\nalimentación, permeado y rechazo"];
-        q3 [label="¿Ensayo finalizado?" {DECISION}];
-        cont [label="Continuar toma de datos\nhasta culminar" fillcolor="#EDF2F7"];
-    }}
+    lp [label="Limpiar línea de rechazo\ny de permeado siguiendo\nel procedimiento de purga\nde agua." {NA}];
+    ce [label="Cerrar entrada de\nlactosuero y\ndesconectar tanque" {NA}];
+    naoh [label="(B) Conectar alimento de\nNaOH (1% p/v) y\nrecircular por el equipo" {NA}];
+    dn [label="Desconectar alimento de\nNaOH y conectar línea\nde agua de la planta" {NA}];
+    pg [label="Realizar nuevamente\npurga de agua, midiendo\nflux y conductividad" {NA}];
+    q4 [label="¿La conductividad\ny el flux retoman\nvalor inicial?" {DECISION}];
 
-    subgraph cluster_limpieza {{
-        label="4. Limpieza"; fontname="Helvetica"; fontcolor="#C05621";
-        style="rounded,filled"; fillcolor="#FFFAF0"; color="#FBD38D";
-        lp [label="Limpiar línea de rechazo y de permeado\nsiguiendo el procedimiento de purga de agua."];
-        ce [label="Cerrar entrada de lactosuero\ny desconectar tanque"];
-        naoh [label="(B) Conectar alimento de NaOH (1% p/v)\ny recircular por el equipo" fillcolor="#FEEBC8" color="#DD6B20"];
-        dn [label="Desconectar alimento de NaOH y\nconectar línea de agua de la planta"];
-        pg [label="Realizar nuevamente purga de agua,\nmidiendo flux y conductividad"];
-        q4 [label="¿La conductividad y el flux\nretoman valor inicial?" {DECISION}];
-        rep [label="Repetir a partir de (B)" fillcolor="#EDF2F7"];
-    }}
-
-    subgraph cluster_cierre {{
-        label="5. Cierre"; fontname="Helvetica"; fontcolor="#C53030";
-        style="rounded,filled"; fillcolor="#FFF5F5"; color="#FEB2B2";
-        s1 [label="Detener el flujo de agua"];
-        s2 [label="Apagar bomba de mezclado"];
-        s3 [label="Desocupar y limpiar\ntanque de alimento"];
-        s4 [label="Apagar el equipo"];
-    }}
-
+    s1 [label="Detener el flujo\nde agua" {RO}];
+    s2 [label="Apagar bomba\nde mezclado" {RO}];
+    s3 [label="Desocupar y limpiar\ntanque de alimento" {RO}];
+    s4 [label="Apagar el equipo" {RO}];
     fin [label="Fin" {FIN}];
 
-    ini -> v -> c1 -> c2 -> c3 -> A -> v12 -> aj -> q1;
-    q1 -> aj [{NO}];
-    q1 -> ap [{SI}];
-    ap -> q2;
-    q2 -> ver [{NO}];
-    ver -> A;
-    q2 -> td [{SI}];
-    td -> brix -> q3;
-    nota -> td [style=dashed arrowhead=none];
-    q3 -> cont [{NO}];
-    cont -> q3;
-    q3 -> lp [{SI}];
+    // ---- Títulos de columna
+    {{rank=same; h1; h2; h3; h4}}
+    h1 -> h2 -> h3 -> h4 [style=invis];
+    h1 -> ini [style=invis];
+    h2 -> q3 [style=invis weight=5];
+    h3 -> lp [style=invis weight=5];
+    h4 -> fin [style=invis weight=5];
+
+    // ---- Filas (alinean las 4 columnas de izquierda a derecha)
+    {{rank=same; c1; q3; lp}}              c1 -> q3 -> lp [style=invis];
+    {{rank=same; c2; brix; cont; ce}}      c2 -> brix -> cont -> ce [style=invis];
+    {{rank=same; c3; td; nota; naoh; fin}} c3 -> td -> nota -> naoh -> fin [style=invis];
+    {{rank=same; A; q2; ver; dn; s4}}      A -> q2 -> ver -> dn -> s4 [style=invis];
+    {{rank=same; v12; ap; pg; s3}}         v12 -> ap -> pg -> s3 [style=invis];
+    {{rank=same; aj; q1; rep; q4; s1}}     aj -> q1 -> rep -> q4 -> s1 [style=invis];
+
+    // ---- Columna 1: montaje (baja)
+    ini -> v -> c1 -> c2 -> c3 -> A -> v12 -> aj;
+    aj -> q1;
+    q1 -> aj:s [{NO} constraint=false];
+
+    // ---- Columna 2: arranque y toma de datos (sube)
+    ap -> q1 [dir=back {SI}];
+    q2 -> ap [dir=back];
+    td -> q2 [dir=back {SI}];
+    brix -> td [dir=back];
+    q3 -> brix [dir=back];
+    q2 -> ver [{NO} constraint=false];
+    ver -> A [constraint=false style=dashed];
+    q3 -> cont [{NO} constraint=false];
+    cont -> q3 [constraint=false style=dashed];
+    nota -> td [style=dashed dir=none constraint=false];
+
+    // ---- Columna 3: limpieza (baja)
+    q3 -> lp [{SI} constraint=false];
     lp -> ce -> naoh -> dn -> pg -> q4;
-    q4 -> rep [{NO}];
-    rep -> naoh;
-    q4 -> s1 [{SI}];
-    s1 -> s2 -> s3 -> s4 -> fin;
+    rep -> q4 [dir=back {NO} constraint=false];
+    rep -> naoh [constraint=false style=dashed];
+
+    // ---- Columna 4: cierre (sube)
+    q4 -> s1 [{SI} constraint=false];
+    s2 -> s1 [dir=back];
+    s3 -> s2 [dir=back];
+    s4 -> s3 [dir=back];
+    fin -> s4 [dir=back];
     ''')
