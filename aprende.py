@@ -23,60 +23,120 @@ import streamlit.components.v1 as components
 # =============================================================================
 
 FLASHCARDS = [
-    # (categoría, frente, reverso)
-    ("Conceptos", "¿Qué es la ultrafiltración (UF)?",
-     "Una separación por membranas que permite concentrar selectivamente macromoléculas. "
-     "Aquí se usa para concentrar las proteínas del lactosuero."),
-    ("Conceptos", "¿Qué sale por el PERMEADO?",
-     "Agua, lactosa y sales minerales: lo que atraviesa los poros de la membrana. "
-     "Se retira continuamente hacia un tanque de recolección."),
-    ("Conceptos", "¿Qué lleva el RECHAZO (retenido)?",
-     "Las proteínas, que son demasiado grandes para atravesar los poros. "
-     "Se recircula al tanque de alimentación, donde la proteína se va concentrando."),
-    ("Conceptos", "Flujo volumétrico vs. flux",
-     "El flujo es volumen por tiempo (L/min). El flux es ese flujo dividido por el "
-     "área de membrana: J en L/(m²·h)."),
-    ("Conceptos", "¿Qué es el fouling (ensuciamiento)?",
-     "Una capa de proteínas y grasas sobre la membrana. Agrega resistencia: el flux de "
-     "permeado cae con el tiempo y suben las presiones en los manómetros."),
-    ("Modelos", "Balance por lotes del tanque",
-     "1/C(t) − 1/C₀ = −K·t\nSupone que casi nada de proteína atraviesa la membrana "
-     "(rechazo casi total). K ≈ 0.00127 (g/L)⁻¹·min⁻¹, R² = 0.972."),
-    ("Modelos", "Hermia n = 0 (formación de torta)",
-     "J(t) = [1/J₀² + 2·Kc·t]^(−0.5)\nModelo recomendado dentro del rango medido "
-     "(0–40 min). R² = 0.994."),
-    ("Modelos", "Modelo exponencial empírico",
-     "J(t) = J∞ + (J₀ − J∞)·e^(−k·t)\nTiene un flux mínimo físico J∞ ≈ 8.1 L/(m²·h): "
-     "es el más confiable para proyectar tiempos largos."),
-    ("Modelos", "¿Qué pasa si simulo más allá de 40 min?",
-     "El modelo calcula igual, pero es una extrapolación: una proyección orientativa, "
-     "no un dato verificado en laboratorio."),
-    ("Equipo", "Parámetros físicos del equipo",
-     "Volumen de operación ≈ 80 L · Área de membrana = 4.8 m² · "
-     "Densidad del lactosuero = 1.026 g/cm³"),
-    ("Equipo", "Indicadores de desempeño",
-     "FCV (factor de concentración volumétrica) ≈ 1.5\n"
-     "Coeficiente de rechazo R entre 93 % y 95 % en operación óptima."),
-    ("Equipo", "¿Qué indica una caída fuerte del rechazo R?",
-     "Una posible ruptura física de los poros de la membrana: pierde selectividad."),
-    ("Procedimiento", "Preparación del lactosuero",
-     "~80 L de agua en el tanque + ~5.21 kg de lactosuero en polvo. "
-     "Mezclar con la bomba y dejar hidratar entre 5 y 10 min."),
-    ("Procedimiento", "Arranque de la práctica",
-     "Abrir válvulas 1 y 2 del panel, ajustar la alimentación a ~6 L/min en el "
-     "rotámetro y abrir la válvula de permeado ~2 vueltas."),
-    ("Procedimiento", "Toma de datos",
-     "Cada 8 min: peso de permeado y rechazo, presión de entrada y de membrana, "
-     "y °Brix de alimentación, permeado y rechazo."),
-    ("Procedimiento", "Purga con agua",
-     "Purgar las líneas de rechazo y permeado hasta ver agua clara y verificar la "
-     "conductividad (~30–33 µS/cm)."),
-    ("Procedimiento", "Limpieza química",
-     "Recircular NaOH al 1 % p/v. Luego purgar con agua y comprobar que la "
-     "conductividad y el flux vuelven a su valor inicial."),
-    ("Medición", "¿Cómo se mide cada cosa en el laboratorio?",
-     "Azúcares (paso de lactosa): °Brix por refractometría.\n"
-     "Proteína: espectrofotometría, p. ej. método de Bradford."),
+    # (categoría, pregunta del frente, explicación del reverso)
+    ("Conceptos",
+     "¿Qué es la ultrafiltración y para qué se usa en esta práctica?",
+     "Es una separación por membranas: el líquido se empuja con presión contra una "
+     "membrana con poros muy finos. Las moléculas pequeñas la atraviesan y las grandes "
+     "quedan retenidas.\n\nAquí se usa para concentrar las proteínas del lactosuero, que "
+     "son grandes, separándolas del agua, la lactosa y las sales, que son pequeñas. El "
+     "equipo fue diseñado para tratar agua y se adaptó para esta aplicación."),
+    ("Conceptos",
+     "¿Qué es el permeado y qué contiene?",
+     "Es la corriente que SÍ atraviesa los poros de la membrana. Contiene agua, lactosa y "
+     "sales minerales, porque son moléculas lo bastante pequeñas para pasar.\n\nSe retira "
+     "continuamente hacia un tanque de recolección. Su caudal por unidad de área es el "
+     "flux, la variable principal que sigue el gemelo digital."),
+    ("Conceptos",
+     "¿Qué es el rechazo (retenido) y por qué se recircula al tanque?",
+     "Es la corriente que NO atraviesa la membrana: lleva las proteínas, que son "
+     "demasiado grandes para los poros.\n\nSe devuelve al tanque de alimentación "
+     "(operación en reciclo) para que la proteína no se quede pegada en la membrana. Como "
+     "el agua sí sale por el permeado, en el tanque queda cada vez menos volumen con la "
+     "misma proteína: por eso la concentración sube con el tiempo."),
+    ("Conceptos",
+     "¿Cuál es la diferencia entre flujo volumétrico y flux de permeado?",
+     "El flujo volumétrico es cuánto volumen pasa por unidad de tiempo (por ejemplo, L/min). "
+     "El flux es ese mismo flujo dividido entre el área de la membrana, en L/(m²·h).\n\n"
+     "Se usa el flux porque permite comparar membranas de distinto tamaño: dice qué tan "
+     "rápido filtra cada metro cuadrado. En este equipo el área es de 4.8 m²."),
+    ("Conceptos",
+     "¿Qué es el fouling (ensuciamiento) y cómo se nota en el equipo?",
+     "Es una capa de proteínas y grasas que se va acumulando sobre la superficie de la "
+     "membrana mientras se filtra el lactosuero.\n\nEsa capa es una resistencia extra al "
+     "paso del líquido, así que:\n• el flux de permeado baja con el tiempo, y\n• las "
+     "presiones en los manómetros suben.\nPor eso hay que limpiar la membrana al final."),
+    ("Modelos",
+     "¿Cómo predice el gemelo digital la concentración de proteína en el tanque?",
+     "Con un balance de materia en el tanque:\n1/C(t) − 1/C₀ = −K·t\n\nC₀ es la "
+     "concentración inicial, C(t) la concentración al tiempo t y K una constante que agrupa "
+     "presión, viscosidad, resistencias y área. Supone que casi nada de proteína atraviesa "
+     "la membrana.\n\nLo que baja de forma lineal es 1/C, así que C sube cada vez más "
+     "rápido. K ≈ 0.00127 (g/L)⁻¹·min⁻¹ se ajustó con los datos R:28/72 (R² = 0.972)."),
+    ("Modelos",
+     "¿Qué dice el modelo de Hermia n = 0 (formación de torta) sobre el flux?",
+     "Supone que la proteína forma una capa (torta) cada vez más gruesa sobre la membrana, "
+     "y que esa capa es la que frena el paso del líquido:\nJ(t) = [1/J₀² + 2·Kc·t]^(−0.5)"
+     "\n\nJ₀ es el flux inicial (≈ 19 L/m²·h) y Kc mide qué tan rápido crece la torta. Es el "
+     "modelo recomendado entre 0 y 40 min porque es físicamente coherente y ajustó "
+     "muy bien los datos (R² = 0.994)."),
+    ("Modelos",
+     "¿Qué dice el modelo exponencial y cuándo conviene usarlo?",
+     "J(t) = J∞ + (J₀ − J∞)·e^(−k·t)\n\nEl flux arranca en J₀ y baja hasta estabilizarse en "
+     "un valor mínimo J∞ ≈ 8.1 L/(m²·h); k indica qué tan rápido llega allí.\n\nConviene para "
+     "proyectar tiempos largos: como tiene un piso físico (J∞), no predice flux absurdamente "
+     "bajos. El modelo de torta, en cambio, sigue bajando sin límite."),
+    ("Modelos",
+     "¿Qué tan confiable es una simulación de más de 40 minutos?",
+     "Los modelos se ajustaron con datos medidos entre 0 y 40 min. Más allá de eso el "
+     "simulador calcula igual, pero es una extrapolación: una proyección orientativa, "
+     "no un dato comprobado en laboratorio.\n\nSi vas a proyectar tiempos largos, usa el "
+     "modelo exponencial, que se comporta de forma más realista."),
+    ("Equipo",
+     "¿Cuáles son los parámetros físicos principales del equipo y la práctica?",
+     "• Volumen de operación: unos 80 L de lactosuero reconstituido en el tanque de "
+     "alimentación.\n• Área de la membrana: 4.8 m², la que se usa para pasar de flujo a "
+     "flux.\n• Densidad del lactosuero: 1.026 g/cm³, para convertir los pesos medidos en "
+     "volumen."),
+    ("Equipo",
+     "¿Qué miden el FCV y el coeficiente de rechazo R?",
+     "FCV (factor de concentración volumétrica): compara el volumen inicial con el "
+     "volumen concentrado final. Dice cuánto se concentró el lote; en esta membrana suele "
+     "estar alrededor de 1.5.\n\nCoeficiente de rechazo R: mide qué fracción de la proteína "
+     "retiene la membrana, es decir, su selectividad. En operación óptima está entre 93 % y "
+     "95 %."),
+    ("Equipo",
+     "¿Qué significa que el coeficiente de rechazo caiga de forma drástica?",
+     "Que la membrana está dejando pasar proteína que antes retenía: perdió "
+     "selectividad.\n\nLa causa más probable es una ruptura física de los poros, que puede "
+     "ocurrir por presiones extremas o cambios bruscos de pH. Por eso las membranas son "
+     "frágiles y hay que operarlas dentro de sus límites."),
+    ("Procedimiento",
+     "¿Cómo se prepara el lactosuero antes de la práctica?",
+     "1. Llenar el tanque de alimentación con unos 80 L de agua.\n2. Pesar unos 5.21 kg "
+     "de lactosuero en polvo y agregarlo.\n3. Encender la bomba de mezclado y apoyarse con "
+     "una vara.\n4. Dejar hidratar la mezcla entre 5 y 10 min para que el polvo se disuelva "
+     "bien antes de filtrar."),
+    ("Procedimiento",
+     "¿Cómo se arranca la ultrafiltración en el equipo?",
+     "1. Verificar que todas las válvulas estén cerradas.\n2. Conectar el rechazo de vuelta "
+     "al tanque de alimentación y el permeado al tanque de recolección.\n3. Abrir las "
+     "válvulas 1 y 2 del panel.\n4. Ajustar la alimentación a unos 6 L/min en el rotámetro."
+     "\n5. Abrir la válvula de permeado unas 2 vueltas."),
+    ("Procedimiento",
+     "¿Qué datos se toman durante la práctica y cada cuánto?",
+     "Cada 8 minutos se registra:\n• el peso de permeado y de rechazo, para calcular "
+     "caudales y flux;\n• la presión de entrada y la de membrana, que suben con el "
+     "ensuciamiento;\n• los °Brix de alimentación, permeado y rechazo, para seguir el paso "
+     "de azúcares.\nSe continúa hasta terminar el ensayo."),
+    ("Procedimiento",
+     "¿Para qué sirve la purga con agua y cómo se sabe que terminó?",
+     "Sirve para limpiar las líneas de rechazo y de permeado, arrastrando los restos de "
+     "producto.\n\nSe abre el paso por cada línea entre 5 y 10 min hasta que el agua sale "
+     "clara. Luego se toma una muestra y se mide la conductividad: debe estar alrededor de "
+     "30–33 µS/cm. También se mide el flux de agua pura."),
+    ("Procedimiento",
+     "¿Cómo se hace la limpieza química y cómo se comprueba que funcionó?",
+     "Se recircula una solución de NaOH (soda cáustica) al 1 % p/v por el equipo, que "
+     "disuelve la capa de proteína que causa el fouling.\n\nDespués se purga otra vez con "
+     "agua, midiendo flux y conductividad. La limpieza funcionó cuando ambos vuelven a sus "
+     "valores iniciales; si no, se repite."),
+    ("Medición",
+     "¿Qué técnicas de laboratorio se usan para medir azúcares y proteína?",
+     "Azúcares (lactosa): grados Brix con un refractómetro. Es una medida cualitativa "
+     "que muestra si la lactosa está pasando al permeado, como se espera.\n\nProteína: "
+     "espectrofotometría, por ejemplo el método de Bradford. Da la concentración exacta "
+     "de proteína en cada corriente y permite calcular el rechazo R."),
 ]
 
 COLORES_CAT = {
@@ -98,7 +158,7 @@ def _html_flashcards():
   .chip { border:1px solid #cbd5e0; background:#fff; color:#2d3748; border-radius:16px;
           padding:4px 12px; font-size:13px; cursor:pointer; }
   .chip.activo { background:#1f4e78; color:#fff; border-color:#1f4e78; }
-  .escena { perspective: 1200px; width:100%; height:250px; cursor:pointer; }
+  .escena { perspective: 1200px; width:100%; height:340px; cursor:pointer; }
   .tarjeta { position:relative; width:100%; height:100%; transition: transform .6s;
              transform-style: preserve-3d; }
   .tarjeta.volteada { transform: rotateY(180deg); }
@@ -106,9 +166,11 @@ def _html_flashcards():
           padding:24px 32px; display:flex; flex-direction:column; justify-content:center;
           align-items:center; text-align:center; box-shadow: 0 4px 14px rgba(0,0,0,.12); }
   .frente { background:#fff; border-top:8px solid var(--c); }
-  .frente .preg { font-size:24px; font-weight:600; color:#1a202c; }
+  .frente .preg { font-size:23px; font-weight:600; color:#1a202c; line-height:1.35; max-width:620px; }
   .reverso { background:var(--c); color:#fff; transform: rotateY(180deg); }
-  .reverso .resp { font-size:18px; line-height:1.45; white-space:pre-line; }
+  .reverso { justify-content:flex-start; align-items:stretch; padding:40px 32px 34px; }
+  .reverso .resp { font-size:15.5px; line-height:1.5; white-space:pre-line; text-align:left;
+                   overflow-y:auto; flex:1; }
   .etiqueta { position:absolute; top:12px; left:16px; font-size:12px; font-weight:700;
               letter-spacing:.05em; text-transform:uppercase; color:var(--c); }
   .reverso .etiqueta { color:rgba(255,255,255,.85); }
@@ -186,7 +248,7 @@ def _seccion_flashcards():
         "Repasa los conceptos clave del gemelo digital. **Haz clic en la tarjeta** para "
         "voltearla, marca las que ya te sabes y repite las demás hasta dominar el mazo."
     )
-    components.html(_html_flashcards(), height=420)
+    components.html(_html_flashcards(), height=510)
 
 
 # =============================================================================
