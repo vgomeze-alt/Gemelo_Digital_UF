@@ -1031,7 +1031,9 @@ def simulacion():
         simular = st.button("Simular", width="stretch")
 
     if simular:
-        t = np.arange(0, t_final + dt, dt)
+        # Termina exactamente en t_final aunque no sea múltiplo de Δt
+        # (antes, p. ej. t_final=5 y Δt=2 simulaba hasta 6 min).
+        t = np.append(np.arange(0, t_final, dt), t_final).astype(float)
 
         if es_agua:
             if es_enjuague:
@@ -1065,12 +1067,89 @@ def simulacion():
                 "Vol. permeado acumulado (L)": Vp_t,
             })
 
+        # ------------------------------------------------------------------
+        # AVISOS según lo que muestra la simulación
+        # ------------------------------------------------------------------
+        V_TANQUE = 80.0  # L, volumen de operación estándar
+        avisos = []      # (nivel, texto) — nivel: "error", "warning", "info"
+        t_divergencia = None
+        t_tanque_vacio = None
+
+        if not es_agua:
+            t_div = 1.0 / (PARAMS["K"] * C0)
+            if t_div <= t_final:
+                t_divergencia = t_div
+                avisos.append(("error",
+                    f"🚫 **La concentración «explota» cerca de t ≈ {t_div:.0f} min.** El balance "
+                    f"1/C − 1/C₀ = −K·t predice que C crece sin límite cuando K·t se acerca a 1/C₀ "
+                    f"(con C₀ = {C0:g} g/L, eso ocurre a t = 1/(K·C₀) ≈ {t_div:.0f} min). Después de "
+                    f"ese tiempo el modelo ya no tiene sentido físico, por eso la curva de "
+                    f"concentración se corta. Reduce el tiempo de simulación o la concentración inicial."))
+            else:
+                C_max = float(np.nanmax(C_t))
+                if C_max > 3 * C0:
+                    avisos.append(("warning",
+                        f"⚠️ **Concentración poco realista.** La proteína llega a {C_max:.1f} g/L, "
+                        f"{C_max / C0:.1f} veces la inicial. En la práctica el factor de concentración "
+                        f"de esta membrana ronda 1.5: la capa de gel y el aumento de viscosidad "
+                        f"impedirían concentrar tanto. Toma este resultado solo como tendencia."))
+
+        if Vp_t[-1] > V_TANQUE:
+            t_tanque_vacio = float(np.interp(V_TANQUE, Vp_t, t))
+            avisos.append(("warning",
+                f"⚠️ **El tanque se habría vaciado.** Hacia t ≈ {t_tanque_vacio:.0f} min ya salieron "
+                f"más de {V_TANQUE:.0f} L de permeado, más de lo que cabe en el tanque de "
+                f"alimentación. En la realidad la operación se detendría antes; desde ese punto "
+                f"(línea gris en la gráfica de flux) el resultado no es físico."))
+
+        if (not es_agua) and modelo_flux.startswith("Hermia") and J_t[-1] < PARAMS["Jinf_exp"]:
+            avisos.append(("info",
+                f"ℹ️ **El modelo de torta sigue bajando sin límite.** Al final predice "
+                f"{J_t[-1]:.2f} L/(m²·h), por debajo del flux mínimo físico esperado "
+                f"(J∞ ≈ {PARAMS['Jinf_exp']:.1f} L/(m²·h) del modelo exponencial). Para tiempos "
+                f"largos compara con el modelo exponencial, que se estabiliza en ese mínimo."))
+
+        if (not es_agua) and modelo_flux.startswith("Exponencial") and t_final >= 60:
+            avisos.append(("info",
+                f"ℹ️ **¿Por qué el flux se vuelve horizontal al final?** El modelo exponencial se "
+                f"acerca a su valor mínimo J∞ ≈ {PARAMS['Jinf_exp']:.1f} L/(m²·h): la capa de "
+                f"ensuciamiento deja de crecer y el flux se estabiliza."))
+
+        if es_agua and not es_enjuague:
+            avisos.append(("info",
+                "ℹ️ **¿Por qué el flux es una línea horizontal?** Con agua pura no hay proteína, así "
+                "que no se forma torta ni ensuciamiento: nada frena el paso del agua y el flux se "
+                "mantiene constante en la línea base de la membrana limpia."))
+
+        if t_final <= 10 and not (es_agua and not es_enjuague):
+            avisos.append(("info",
+                "ℹ️ **¿Por qué la curva se ve casi como una línea recta?** En pocos minutos la "
+                "concentración y el flux cambian tan poco que la curva parece recta, igual que un "
+                "tramo muy pequeño de cualquier curva. Simula hasta unos 40 min para ver la forma "
+                "completa: " + ("el flux se recupera rápido al inicio y luego cada vez más despacio."
+                                if es_agua else
+                                "el flux cae rápido al inicio y luego cada vez más despacio.")))
+
+        if len(t) < 6:
+            avisos.append(("info",
+                f"ℹ️ **La gráfica se ve en tramos rectos.** Solo hay {len(t)} puntos y cada uno se "
+                f"une con una línea recta. Baja el paso de tiempo Δt para que la curva se vea suave."))
+
         with col_out:
             st.subheader("Resultados de la simulación")
-
+            orden_nivel = {"error": 0, "warning": 1, "info": 2}
+            for nivel, texto in sorted(avisos, key=lambda a: orden_nivel[a[0]]):
+                getattr(st, nivel)(texto)
             if not es_agua:
                 fig1, ax1 = plt.subplots()
                 ax1.plot(t, C_t, marker="o", color="#1f4e78")
+                if t_divergencia is not None:
+                    # El pico hacia infinito aplastaría el resto de la curva: se limita el eje y.
+                    ax1.set_ylim(0, 5 * C0)
+                    ax1.set_xlim(-t_final * 0.02, t_final * 1.02)
+                    ax1.axvline(t_divergencia, color="red", linestyle=":", linewidth=1.5)
+                    ax1.text(t_divergencia, ax1.get_ylim()[1] * 0.9, " C → ∞",
+                             color="red", fontsize=8, va="top")
                 if t_final > PARAMS["t_max_valido"]:
                     ax1.axvspan(PARAMS["t_max_valido"], t_final, color="orange", alpha=0.08)
                     ax1.axvline(PARAMS["t_max_valido"], color="orange", linestyle="--", linewidth=1)
@@ -1093,6 +1172,10 @@ def simulacion():
                 ax2.axvline(PARAMS["t_max_valido"], color="orange", linestyle="--", linewidth=1)
                 ax2.text(PARAMS["t_max_valido"], ax2.get_ylim()[1]*0.98, " proyección →",
                           color="darkorange", fontsize=8, va="top")
+            if t_tanque_vacio is not None:
+                ax2.axvline(t_tanque_vacio, color="gray", linestyle="-.", linewidth=1.2)
+                ax2.text(t_tanque_vacio, ax2.get_ylim()[1] * 0.85, " tanque vacío",
+                         color="dimgray", fontsize=8, va="top")
             ax2.set_xlabel("Tiempo (min)")
             ax2.set_ylabel("J (L/m2 h)")
             if es_agua:
@@ -1132,8 +1215,9 @@ def simulacion():
                     )
             else:
                 colr1, colr2, colr3, colr4 = st.columns(4)
-                colr1.metric("C final (g/L)", f"{C_t[-1]:.2f}")
-                colr2.metric("Factor Cf/C0", f"{C_t[-1]/C0:.2f}")
+                c_fin = C_t[-1]
+                colr1.metric("C final (g/L)", f"{c_fin:.2f}" if np.isfinite(c_fin) else "— (C → ∞)")
+                colr2.metric("Factor Cf/C0", f"{c_fin / C0:.2f}" if np.isfinite(c_fin) else "—")
                 colr3.metric("J final (L/m2 h)", f"{J_t[-1]:.2f}")
                 colr4.metric("J promedio (L/m2 h)", f"{np.mean(J_t):.2f}")
 
