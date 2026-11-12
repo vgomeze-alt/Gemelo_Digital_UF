@@ -1472,16 +1472,24 @@ def datos():
                 adjuntar_archivo=archivo,
                 observaciones=observaciones.strip(),
             )
+            # Se guarda el resultado para mostrarlo DESPUÉS del st.rerun() de abajo
+            # (si se muestra aquí, el rerun lo borra antes de que se vea).
             if enviado:
-                st.info(f"Se notificó por correo la carga realizada por **{nombre_usuario}**. "
-                        f"Queda pendiente de aprobación (ver abajo).")
+                st.session_state.aviso_carga = ("ok",
+                    f"Se notificó por correo la carga realizada por **{nombre_usuario}** "
+                    f"a: {st.secrets['email']['destinatario']}. Queda pendiente de aprobación (ver abajo).")
             else:
-                st.caption(f"No se pudo enviar la notificación por correo: {error}")
+                st.session_state.aviso_carga = ("error",
+                    f"El registro se guardó, pero **no se pudo enviar la notificación por correo**: {error}")
 
             # Reinicia el formulario: nombre, correo, archivo y observaciones
             # quedan vacíos de nuevo.
             st.session_state.form_datos_version += 1
             st.rerun()
+
+    aviso = st.session_state.pop("aviso_carga", None)
+    if aviso:
+        (st.success if aviso[0] == "ok" else st.error)(aviso[1])
 
     # =========================================================================
     # HISTORIAL PÚBLICO (visible para cualquiera, sin contraseña)
