@@ -665,16 +665,22 @@ def _seccion_evaluacion(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp, guardar_
 
 def _panel_profesor(cargar_evaluaciones):
     with st.expander("👩‍🏫 Para el profesor: ver resultados de las evaluaciones"):
-        if not st.session_state.get("autenticado_admin"):
-            clave = st.text_input("Contraseña de administrador", type="password", key="clave_admin_eval")
-            if st.button("Ingresar", key="btn_admin_eval"):
+        # Contraseña propia de los profesores que manejan el equipo, distinta de la
+        # de administrador [admin] que aprueba/rechaza prácticas en "Sube tus Datos".
+        # En los Secrets:
+        # [profesores]
+        # password = "..."
+        if not st.session_state.get("autenticado_profesor"):
+            clave = st.text_input("Contraseña de profesores", type="password", key="clave_prof_eval")
+            if st.button("Ingresar", key="btn_prof_eval"):
                 try:
-                    correcta = st.secrets["admin"]["password"]
+                    correcta = st.secrets["profesores"]["password"]
                 except Exception:
-                    st.error("No se ha configurado la contraseña de administrador en los Secrets.")
+                    st.error("No se ha configurado la contraseña de profesores. Agrega una "
+                             "sección [profesores] con 'password' en los Secrets.")
                     return
                 if clave == correcta:
-                    st.session_state.autenticado_admin = True
+                    st.session_state.autenticado_profesor = True
                     st.rerun()
                 else:
                     st.error("Contraseña incorrecta.")
