@@ -913,6 +913,18 @@ def informacion_general():
 
 def simulacion():
     st.write("# Simulación")
+    modo = st.radio(
+        "Tipo de simulación",
+        ["Simulación base (datos R:28/72)", "Presión y Montecarlo 🎲"],
+        horizontal=True,
+        help="La simulación base usa los modelos ajustados con los datos de laboratorio. "
+             "El modo de presión explora qué pasa al cambiar la presión, la membrana o la "
+             "temperatura, con incertidumbre (Montecarlo).",
+    )
+    if modo.startswith("Presión"):
+        from simulacion_presion import pagina_presion
+        pagina_presion(PARAMS)
+        return
     st.markdown(
         "Modelo del proceso de ultrafiltración ajustado con datos experimentales "
         "**R:28/72**. Elige qué fluido se hace circular por la membrana, define "
