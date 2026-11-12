@@ -29,6 +29,8 @@
 #   - s: alrededor del valor elegido (±0.1)
 #   - ΔP real: ±5 % por fluctuaciones de bomba / lectura del manómetro
 #   - T: ±1 °C;  R_M: ±5 % de variación entre membranas / estado
+#   - Variación entre corridas: factor ~N(1, 0.099) sobre el flux (CV medio de
+#     las réplicas). Con esto la banda del 90 % contiene los 15 puntos medidos.
 
 import numpy as np
 import pandas as pd
@@ -52,6 +54,9 @@ HERMIA_MEDIA = np.array([19.0545, 1.33995e-4])            # J0 [L/m²h], Kc
 HERMIA_COV = np.array([[3.57104788e+00, 2.79888831e-05],  # covarianza del ajuste
                        [2.79888831e-05, 3.03852765e-10]])
 K_MEDIA, K_SD = 0.0012680, 1.29e-4                         # (g/L)^-1 min^-1
+CV_CORRIDAS = 0.099   # variación entre corridas: CV medio del flux entre las 3 réplicas
+                      # (6–13 % según el tiempo). Sin él, la banda solo refleja la
+                      # incertidumbre del ajuste y deja fuera a la réplica 3.
 
 ESTADOS_MEMBRANA = {
     "Nueva / recién limpiada (R_M × 1.00)": 1.00,
@@ -123,8 +128,10 @@ def correr(J_agua, dP_psi, T, f_mem, s, C0, t_final, n_mc, semilla, p_max_bar):
     dP_mc = (dP * (1 + rng.normal(0, 0.05, n_mc)))[:, None]
     T_mc = rng.normal(T, 1.0, n_mc)[:, None]
     f_mc = (f_mem * (1 + rng.normal(0, 0.05, n_mc)))[:, None]
+    corrida = np.clip(rng.normal(1.0, CV_CORRIDAS, n_mc), 0.5, 1.5)[:, None]
 
     J_mc, J_ref_mc = _flux(t[None, :], dP_mc, T_mc, f_mc, s_mc, J0, Kc, R_M)
+    J_mc = J_mc * corrida
     C_mc = conc(J_mc, J_ref_mc, K)
     V_mc = vol(J_mc)
 
@@ -132,6 +139,7 @@ def correr(J_agua, dP_psi, T, f_mem, s, C0, t_final, n_mc, semilla, p_max_bar):
     p_hi = max(1.3 * p_max_bar * BAR_A_PA, 1.2 * dP, 1.5 * DP_REF)
     dP_grid = np.linspace(0.05 * BAR_A_PA, p_hi, 60)
     J_grid_mc, _ = _flux(t_final, dP_grid[None, :], T_mc, f_mc, s_mc, J0, Kc, R_M)
+    J_grid_mc = J_grid_mc * corrida
     J_grid_nom, _ = _flux(t_final, dP_grid, T, f_mem, s, *HERMIA_MEDIA, R_M)
     mu_w = _mu_agua(T)
     J_agua_grid = _de_si(dP_grid / (mu_w * R_M * f_mem))
@@ -381,9 +389,11 @@ presiones.
 - $J_0$ y $K_c$ según la incertidumbre del ajuste de las **3 réplicas**;
 - $K$ según la variación entre réplicas (±10 %);
 - la compresibilidad (±0.1), la presión real (±5 %), la temperatura (±1 °C) y la resistencia de la
-  membrana (±5 %).
+  membrana (±5 %);
+- la **variación entre corridas** (≈ 10 %, el coeficiente de variación medido entre réplicas).
 
-La banda sombreada contiene el 90 % de los resultados.
+La banda sombreada contiene el 90 % de los resultados. A 11 psi contiene los 15 puntos
+experimentales de las 3 réplicas.
 
 **Presión máxima**: {P_MAX_PROVISIONAL_BAR:.1f} bar por defecto. Es un valor **provisional** tomado de
 fichas técnicas de membranas de ultrafiltración para agua (rango típico de 1 a 3 bar), porque no se
