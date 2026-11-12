@@ -293,7 +293,10 @@ def guardar_evaluacion(resultado):
 # smtp_port = 587
 #
 # [admin]
-# password = "la_clave_que_tú_quieras"
+# password = "la_clave_que_tú_quieras"   # aprueba/rechaza prácticas en "Sube tus Datos"
+#
+# [profesores]
+# password = "otra_clave"   # ver y verificar evaluaciones en "Aprende y Evalúate"
 #
 # Con Gmail, no funciona la contraseña normal de la cuenta: hay que activar
 # verificación en 2 pasos y generar una "Contraseña de aplicación" en
