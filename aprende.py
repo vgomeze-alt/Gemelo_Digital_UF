@@ -544,20 +544,53 @@ def _seccion_evaluacion(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp, guardar_
 
     # ---------------------------------------------------------------- EXAMEN
     if ev["estado"] == "examen":
-        st.info(f"Evaluación de **{ev['nombre']}** · Responde todas las preguntas y presiona "
-                f"**Enviar evaluación**. No podrás cambiar tus respuestas después de enviar.")
-        with st.form("form_examen"):
-            respuestas = []
-            for k, p in enumerate(ev["preguntas"], start=1):
-                st.markdown(f"**{k}. {p['texto']}**")
-                if p["tipo"] == "opcion":
-                    respuestas.append(st.radio("Respuesta", p["opciones"], index=None,
-                                               key=f"ev_p{k}", label_visibility="collapsed"))
-                else:
-                    respuestas.append(st.number_input(f"Respuesta en {p['unidad']}", value=None,
-                                                      step=0.01, format="%.2f", key=f"ev_p{k}"))
-                st.write("")
-            enviar = st.form_submit_button("Enviar evaluación", type="primary")
+        # Las respuestas se guardan en ev["resp"] (no solo en los widgets), así no se
+        # pierden si el estudiante va a otra pestaña (p. ej. Simulación) y regresa.
+        resp = ev.setdefault("resp", {})
+
+        def campo(k, p):
+            clave = f"ev_p{k}"
+            if clave not in st.session_state and k in resp:
+                st.session_state[clave] = resp[k]       # restaurar lo que ya había escrito
+            ya = clave in st.session_state
+            st.markdown(f"**{k}. {p['texto']}**")
+            if p["tipo"] == "opcion":
+                extra = {} if ya else {"index": None}
+                valor = st.radio("Respuesta", p["opciones"], key=clave,
+                                 label_visibility="collapsed", **extra)
+            else:
+                extra = {} if ya else {"value": None}
+                valor = st.number_input(f"Respuesta en {p['unidad']}", step=0.01,
+                                        format="%.2f", key=clave, **extra)
+            resp[k] = valor
+            st.write("")
+
+        st.info(f"Evaluación de **{ev['nombre']}** · Tus respuestas se guardan solas: puedes "
+                f"ir a otras pestañas y volver sin perderlas. Al final presiona **Enviar "
+                f"evaluación**; después de enviar ya no podrás cambiarlas.")
+
+        numericas = [p for p in ev["preguntas"] if p["tipo"] == "numero"]
+        opciones = [p for p in ev["preguntas"] if p["tipo"] == "opcion"]
+        orden = numericas + opciones          # los problemas numéricos van primero
+        ev["preguntas"] = orden
+
+        with st.container(border=True):
+            st.markdown("#### 🧮 Parte 1 · Problemas numéricos (hazlos primero)")
+            st.warning(
+                "**Antes de seguir:** anota los datos de estos problemas (C₀, tiempos, masas…). "
+                "Luego ve a la pestaña **Simulación** del menú lateral o resuélvelos con las "
+                "ecuaciones, y vuelve aquí a escribir tus resultados. Para volver: menú lateral "
+                "→ **🎓 Aprende y Evalúate** → pestaña **📝 Evaluación final**."
+            )
+            for k, p in enumerate(orden[:len(numericas)], start=1):
+                campo(k, p)
+
+        st.markdown("#### 📋 Parte 2 · Selección múltiple")
+        for k, p in enumerate(orden[len(numericas):], start=len(numericas) + 1):
+            campo(k, p)
+
+        respuestas = [resp.get(k) for k in range(1, len(orden) + 1)]
+        enviar = st.button("Enviar evaluación", type="primary")
         if enviar:
             faltan = [k for k, r in enumerate(respuestas, start=1) if r is None]
             if faltan:
@@ -624,6 +657,8 @@ def _seccion_evaluacion(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp, guardar_
                         + f"  \n_Repasa: pestaña {p['origen']}_")
 
     if st.button("🔁 Hacer un nuevo intento"):
+        for clave in [c for c in st.session_state.keys() if str(c).startswith("ev_p")]:
+            del st.session_state[clave]
         st.session_state.evaluacion = {"estado": "inicio"}
         st.rerun()
 
@@ -677,6 +712,9 @@ def pagina_aprende(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp,
         "Repasa con las flashcards, pon a prueba tu intuición con el modelo y, cuando te "
         "sientas listo, presenta la evaluación final."
     )
+    if st.session_state.get("evaluacion", {}).get("estado") == "examen":
+        st.info("📝 Tienes una evaluación en curso con tus respuestas guardadas. "
+                "Ábrela en la pestaña **📝 Evaluación final**.")
     tab1, tab2, tab3 = st.tabs(["🃏 Flashcards", "🧪 ¿Qué pasaría si...?", "📝 Evaluación final"])
     with tab1:
         _seccion_flashcards()
