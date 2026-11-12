@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")  # backend sin ventana: más liviano en servidor
 import matplotlib.pyplot as plt
 from PIL import Image
 import io
@@ -500,21 +502,21 @@ def informacion_general():
 
     with col_img1:
         st.image(
-            "Multimedia/Imagenes/pfd_alimentacion.png",
+            "Multimedia/Imagenes/pfd_alimentacion.webp",
             caption="Vista del equipo en sección de alimentación",
             width="stretch",
         )
 
     with col_img2:
         st.image(
-            "Multimedia/Imagenes/pfd_panel_valvulas.png",
+            "Multimedia/Imagenes/pfd_panel_valvulas.webp",
             caption="Vista del equipo, panel de válvulas y manómetros",
             width="stretch",
         )
 
     with col_img3:
         st.image(
-            "Multimedia/Imagenes/pfd_salida_membrana.png",
+            "Multimedia/Imagenes/pfd_salida_membrana.webp",
             caption="Vista del equipo, sección de salida de la membrana",
             width="stretch",
         )
@@ -578,7 +580,7 @@ def informacion_general():
             unsafe_allow_html=True)
 
         st.image(
-            "Multimedia/Imagenes/diagrama_flujo_vs_flux.png",
+            "Multimedia/Imagenes/diagrama_flujo_vs_flux.webp",
             caption="Comparación de Flujo Volumétrico y Flux de Permeado en Filtración por Membrana",
             width="stretch",
         )
@@ -693,7 +695,7 @@ def informacion_general():
             unsafe_allow_html=True)
 
         st.image(
-            "Multimedia/Imagenes/historial_flux_curva_limpieza.png",
+            "Multimedia/Imagenes/historial_flux_curva_limpieza.webp",
             caption="Historial de flux (tiempo vs. flux de permeado): curva de "
                     "decaimiento durante la concentración de lactosuero y "
                     "recuperación del flux tras la limpieza química",
@@ -986,6 +988,7 @@ def simulacion():
                 ax1.set_title("Concentración de proteína en el tanque")
                 ax1.grid(alpha=0.3)
                 st.pyplot(fig1)
+                plt.close(fig1)  # liberar memoria: si no, las figuras se acumulan
 
             fig2, ax2 = plt.subplots()
             color_flux = "#2e86ab" if es_agua else "#c00000"
@@ -1007,6 +1010,7 @@ def simulacion():
             ax2.set_title(titulo_flux)
             ax2.grid(alpha=0.3)
             st.pyplot(fig2)
+            plt.close(fig2)
 
             st.subheader("Resumen")
             if es_agua:
@@ -1522,23 +1526,25 @@ def encuesta():
 import base64, os
 import streamlit.components.v1 as components
 
+@st.cache_data(show_spinner=False)
 def _logo_base64(ruta):
+    # Cacheado: se lee y codifica una sola vez, no en cada interacción.
     if os.path.exists(ruta):
         with open(ruta, "rb") as f:
             return base64.b64encode(f.read()).decode()
     return None
 
-_logo_color_b64 = _logo_base64("Multimedia/Imagenes/logo_unal_color.png")
-_logo_blanco_b64 = _logo_base64("Multimedia/Imagenes/logo_unal_blanco.png")
+_logo_color_b64 = _logo_base64("Multimedia/Imagenes/logo_unal_color.webp")
+_logo_blanco_b64 = _logo_base64("Multimedia/Imagenes/logo_unal_blanco.webp")
 
 if _logo_color_b64 and _logo_blanco_b64:
     with st.sidebar:
         components.html(
             f"""
             <div style="width:100%;">
-                <img id="logo-color" src="data:image/png;base64,{_logo_color_b64}"
+                <img id="logo-color" src="data:image/webp;base64,{_logo_color_b64}"
                      style="width:100%; display:block;" />
-                <img id="logo-blanco" src="data:image/png;base64,{_logo_blanco_b64}"
+                <img id="logo-blanco" src="data:image/webp;base64,{_logo_blanco_b64}"
                      style="width:100%; display:none;" />
             </div>
             <script>
@@ -1566,14 +1572,14 @@ if _logo_color_b64 and _logo_blanco_b64:
         )
 elif _logo_color_b64 or _logo_blanco_b64:
     st.sidebar.image(
-        "Multimedia/Imagenes/logo_unal_color.png" if _logo_color_b64
-        else "Multimedia/Imagenes/logo_unal_blanco.png",
+        "Multimedia/Imagenes/logo_unal_color.webp" if _logo_color_b64
+        else "Multimedia/Imagenes/logo_unal_blanco.webp",
         width="stretch",
     )
 else:
     st.sidebar.info(
-        "POR COMPLETAR: logo institucional. Guarda 'logo_unal_color.png' y "
-        "'logo_unal_blanco.png' en Multimedia/Imagenes/."
+        "POR COMPLETAR: logo institucional. Guarda 'logo_unal_color.webp' y "
+        "'logo_unal_blanco.webp' en Multimedia/Imagenes/."
     )
 
 st.sidebar.write("## Menú de Navegación")
@@ -1594,9 +1600,9 @@ if st.sidebar.button("Encuesta de Percepción", width="stretch"):
     st.session_state.pagina = "encuesta"
 
 # --- Imagen del equipo de ultrafiltración, al final del menú lateral ---
-if os.path.exists("Multimedia/Imagenes/equipo_UF.png"):
+if os.path.exists("Multimedia/Imagenes/equipo_UF.webp"):
     st.sidebar.image(
-        "Multimedia/Imagenes/equipo_UF.png",
+        "Multimedia/Imagenes/equipo_UF.webp",
         caption="Equipo de Ultrafiltración",
         width="stretch",
     )
