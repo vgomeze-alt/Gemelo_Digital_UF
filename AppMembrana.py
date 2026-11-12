@@ -179,6 +179,11 @@ def modelo_J_enjuague(t, J_inicio, J_agua=PARAMS["J_agua"], k=PARAMS["k_enjuague
 REGISTRO_PATH = "registros_carga.csv"
 COLUMNAS_REGISTRO = ["nombre", "correo", "tipo_practica", "archivo", "tamano_kb", "fecha", "estado", "observaciones"]
 
+# Resultados de la evaluación de la pestaña "Aprende y Evalúate" (pestaña
+# "evaluaciones" de la misma hoja de Google Sheets).
+EVAL_PATH = "evaluaciones.csv"
+COLUMNAS_EVAL = ["fecha", "nombre", "correo", "grupo", "nota", "correctas", "total", "tiempo_min", "codigo"]
+
 
 def _config_gsheets():
     """Devuelve (url_script, token) o None si no está configurado."""
@@ -189,14 +194,14 @@ def _config_gsheets():
         return None
 
 
-def _llamar_script(metodo, **datos):
+def _llamar_script(metodo, hoja="registros", **datos):
     """Llama al Apps Script de la hoja y devuelve su respuesta (dict)."""
     import requests
     url, token = _config_gsheets()
     if metodo == "GET":
-        r = requests.get(url, params={"token": token}, timeout=20)
+        r = requests.get(url, params={"token": token, "hoja": hoja}, timeout=20)
     else:
-        r = requests.post(url, json={"token": token, **datos}, timeout=20)
+        r = requests.post(url, json={"token": token, "hoja": hoja, **datos}, timeout=20)
     r.raise_for_status()
     resp = r.json()
     if not resp.get("ok"):
@@ -248,6 +253,30 @@ def actualizar_estado_registro(indice, nuevo_estado):
         df.loc[indice, "estado"] = nuevo_estado
         df.to_csv(REGISTRO_PATH, index=False)
     cargar_registros.clear()
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def cargar_evaluaciones():
+    """DataFrame con los resultados de la evaluación de 'Aprende y Evalúate'."""
+    if _config_gsheets():
+        filas = _llamar_script("GET", hoja="evaluaciones")["filas"]
+        return pd.DataFrame(filas, columns=COLUMNAS_EVAL)
+    try:
+        return pd.read_csv(EVAL_PATH)
+    except FileNotFoundError:
+        return pd.DataFrame(columns=COLUMNAS_EVAL)
+
+
+def guardar_evaluacion(resultado):
+    """Agrega una fila con el resultado de una evaluación."""
+    fila = {c: resultado[c] for c in COLUMNAS_EVAL}
+    if _config_gsheets():
+        _llamar_script("POST", hoja="evaluaciones", accion="agregar", fila=fila)
+    else:
+        df = cargar_evaluaciones()
+        df = pd.concat([df, pd.DataFrame([fila])], ignore_index=True)
+        df.to_csv(EVAL_PATH, index=False)
+    cargar_evaluaciones.clear()
 
 
 # =============================================================================
@@ -1641,6 +1670,8 @@ if st.sidebar.button("Documentación", width="stretch"):
     st.session_state.pagina = "Documentacion"
 if st.sidebar.button("Guía de Usuario", width="stretch"):
     st.session_state.pagina = "Guia de Usuario"
+if st.sidebar.button("🎓 Aprende y Evalúate", width="stretch"):
+    st.session_state.pagina = "aprende"
 if st.sidebar.button("Sube tus Datos", width="stretch"):
     st.session_state.pagina = "datos"
 if st.sidebar.button("Encuesta de Percepción", width="stretch"):
@@ -1669,6 +1700,10 @@ elif st.session_state.pagina == "Documentacion":
     documentacion()
 elif st.session_state.pagina == "Guia de Usuario":
     guia_usuario()
+elif st.session_state.pagina == "aprende":
+    from aprende import pagina_aprende
+    pagina_aprende(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp,
+                   guardar_evaluacion, cargar_evaluaciones)
 elif st.session_state.pagina == "datos":
     datos()
 elif st.session_state.pagina == "encuesta":
