@@ -23,60 +23,120 @@ import streamlit.components.v1 as components
 # =============================================================================
 
 FLASHCARDS = [
-    # (categoría, frente, reverso)
-    ("Conceptos", "¿Qué es la ultrafiltración (UF)?",
-     "Una separación por membranas que permite concentrar selectivamente macromoléculas. "
-     "Aquí se usa para concentrar las proteínas del lactosuero."),
-    ("Conceptos", "¿Qué sale por el PERMEADO?",
-     "Agua, lactosa y sales minerales: lo que atraviesa los poros de la membrana. "
-     "Se retira continuamente hacia un tanque de recolección."),
-    ("Conceptos", "¿Qué lleva el RECHAZO (retenido)?",
-     "Las proteínas, que son demasiado grandes para atravesar los poros. "
-     "Se recircula al tanque de alimentación, donde la proteína se va concentrando."),
-    ("Conceptos", "Flujo volumétrico vs. flux",
-     "El flujo es volumen por tiempo (L/min). El flux es ese flujo dividido por el "
-     "área de membrana: J en L/(m²·h)."),
-    ("Conceptos", "¿Qué es el fouling (ensuciamiento)?",
-     "Una capa de proteínas y grasas sobre la membrana. Agrega resistencia: el flux de "
-     "permeado cae con el tiempo y suben las presiones en los manómetros."),
-    ("Modelos", "Balance por lotes del tanque",
-     "1/C(t) − 1/C₀ = −K·t\nSupone que casi nada de proteína atraviesa la membrana "
-     "(rechazo casi total). K ≈ 0.00127 (g/L)⁻¹·min⁻¹, R² = 0.972."),
-    ("Modelos", "Hermia n = 0 (formación de torta)",
-     "J(t) = [1/J₀² + 2·Kc·t]^(−0.5)\nModelo recomendado dentro del rango medido "
-     "(0–40 min). R² = 0.994."),
-    ("Modelos", "Modelo exponencial empírico",
-     "J(t) = J∞ + (J₀ − J∞)·e^(−k·t)\nTiene un flux mínimo físico J∞ ≈ 8.1 L/(m²·h): "
-     "es el más confiable para proyectar tiempos largos."),
-    ("Modelos", "¿Qué pasa si simulo más allá de 40 min?",
-     "El modelo calcula igual, pero es una extrapolación: una proyección orientativa, "
-     "no un dato verificado en laboratorio."),
-    ("Equipo", "Parámetros físicos del equipo",
-     "Volumen de operación ≈ 80 L · Área de membrana = 4.8 m² · "
-     "Densidad del lactosuero = 1.026 g/cm³"),
-    ("Equipo", "Indicadores de desempeño",
-     "FCV (factor de concentración volumétrica) ≈ 1.5\n"
-     "Coeficiente de rechazo R entre 93 % y 95 % en operación óptima."),
-    ("Equipo", "¿Qué indica una caída fuerte del rechazo R?",
-     "Una posible ruptura física de los poros de la membrana: pierde selectividad."),
-    ("Procedimiento", "Preparación del lactosuero",
-     "~80 L de agua en el tanque + ~5.21 kg de lactosuero en polvo. "
-     "Mezclar con la bomba y dejar hidratar entre 5 y 10 min."),
-    ("Procedimiento", "Arranque de la práctica",
-     "Abrir válvulas 1 y 2 del panel, ajustar la alimentación a ~6 L/min en el "
-     "rotámetro y abrir la válvula de permeado ~2 vueltas."),
-    ("Procedimiento", "Toma de datos",
-     "Cada 8 min: peso de permeado y rechazo, presión de entrada y de membrana, "
-     "y °Brix de alimentación, permeado y rechazo."),
-    ("Procedimiento", "Purga con agua",
-     "Purgar las líneas de rechazo y permeado hasta ver agua clara y verificar la "
-     "conductividad (~30–33 µS/cm)."),
-    ("Procedimiento", "Limpieza química",
-     "Recircular NaOH al 1 % p/v. Luego purgar con agua y comprobar que la "
-     "conductividad y el flux vuelven a su valor inicial."),
-    ("Medición", "¿Cómo se mide cada cosa en el laboratorio?",
-     "Azúcares (paso de lactosa): °Brix por refractometría.\n"
-     "Proteína: espectrofotometría, p. ej. método de Bradford."),
+    # (categoría, pregunta del frente, explicación del reverso)
+    ("Conceptos",
+     "¿Qué es la ultrafiltración y para qué se usa en esta práctica?",
+     "Es una separación por membranas: el líquido se empuja con presión contra una "
+     "membrana con poros muy finos. Las moléculas pequeñas la atraviesan y las grandes "
+     "quedan retenidas.\n\nAquí se usa para concentrar las proteínas del lactosuero, que "
+     "son grandes, separándolas del agua, la lactosa y las sales, que son pequeñas. El "
+     "equipo fue diseñado para tratar agua y se adaptó para esta aplicación."),
+    ("Conceptos",
+     "¿Qué es el permeado y qué contiene?",
+     "Es la corriente que SÍ atraviesa los poros de la membrana. Contiene agua, lactosa y "
+     "sales minerales, porque son moléculas lo bastante pequeñas para pasar.\n\nSe retira "
+     "continuamente hacia un tanque de recolección. Su caudal por unidad de área es el "
+     "flux, la variable principal que sigue el gemelo digital."),
+    ("Conceptos",
+     "¿Qué es el rechazo (retenido) y por qué se recircula al tanque?",
+     "Es la corriente que NO atraviesa la membrana: lleva las proteínas, que son "
+     "demasiado grandes para los poros.\n\nSe devuelve al tanque de alimentación "
+     "(operación en reciclo) para que la proteína no se quede pegada en la membrana. Como "
+     "el agua sí sale por el permeado, en el tanque queda cada vez menos volumen con la "
+     "misma proteína: por eso la concentración sube con el tiempo."),
+    ("Conceptos",
+     "¿Cuál es la diferencia entre flujo volumétrico y flux de permeado?",
+     "El flujo volumétrico es cuánto volumen pasa por unidad de tiempo (por ejemplo, L/min). "
+     "El flux es ese mismo flujo dividido entre el área de la membrana, en L/(m²·h).\n\n"
+     "Se usa el flux porque permite comparar membranas de distinto tamaño: dice qué tan "
+     "rápido filtra cada metro cuadrado. En este equipo el área es de 4.8 m²."),
+    ("Conceptos",
+     "¿Qué es el fouling (ensuciamiento) y cómo se nota en el equipo?",
+     "Es una capa de proteínas y grasas que se va acumulando sobre la superficie de la "
+     "membrana mientras se filtra el lactosuero.\n\nEsa capa es una resistencia extra al "
+     "paso del líquido, así que:\n• el flux de permeado baja con el tiempo, y\n• las "
+     "presiones en los manómetros suben.\nPor eso hay que limpiar la membrana al final."),
+    ("Modelos",
+     "¿Cómo predice el gemelo digital la concentración de proteína en el tanque?",
+     "Con un balance de materia en el tanque:\n1/C(t) − 1/C₀ = −K·t\n\nC₀ es la "
+     "concentración inicial, C(t) la concentración al tiempo t y K una constante que agrupa "
+     "presión, viscosidad, resistencias y área. Supone que casi nada de proteína atraviesa "
+     "la membrana.\n\nLo que baja de forma lineal es 1/C, así que C sube cada vez más "
+     "rápido. K ≈ 0.00127 (g/L)⁻¹·min⁻¹ se ajustó con los datos R:28/72 (R² = 0.972)."),
+    ("Modelos",
+     "¿Qué dice el modelo de Hermia n = 0 (formación de torta) sobre el flux?",
+     "Supone que la proteína forma una capa (torta) cada vez más gruesa sobre la membrana, "
+     "y que esa capa es la que frena el paso del líquido:\nJ(t) = [1/J₀² + 2·Kc·t]^(−0.5)"
+     "\n\nJ₀ es el flux inicial (≈ 19 L/m²·h) y Kc mide qué tan rápido crece la torta. Es el "
+     "modelo recomendado entre 0 y 40 min porque es físicamente coherente y ajustó "
+     "muy bien los datos (R² = 0.994)."),
+    ("Modelos",
+     "¿Qué dice el modelo exponencial y cuándo conviene usarlo?",
+     "J(t) = J∞ + (J₀ − J∞)·e^(−k·t)\n\nEl flux arranca en J₀ y baja hasta estabilizarse en "
+     "un valor mínimo J∞ ≈ 8.1 L/(m²·h); k indica qué tan rápido llega allí.\n\nConviene para "
+     "proyectar tiempos largos: como tiene un piso físico (J∞), no predice flux absurdamente "
+     "bajos. El modelo de torta, en cambio, sigue bajando sin límite."),
+    ("Modelos",
+     "¿Qué tan confiable es una simulación de más de 40 minutos?",
+     "Los modelos se ajustaron con datos medidos entre 0 y 40 min. Más allá de eso el "
+     "simulador calcula igual, pero es una extrapolación: una proyección orientativa, "
+     "no un dato comprobado en laboratorio.\n\nSi vas a proyectar tiempos largos, usa el "
+     "modelo exponencial, que se comporta de forma más realista."),
+    ("Equipo",
+     "¿Cuáles son los parámetros físicos principales del equipo y la práctica?",
+     "• Volumen de operación: unos 80 L de lactosuero reconstituido en el tanque de "
+     "alimentación.\n• Área de la membrana: 4.8 m², la que se usa para pasar de flujo a "
+     "flux.\n• Densidad del lactosuero: 1.026 g/cm³, para convertir los pesos medidos en "
+     "volumen."),
+    ("Equipo",
+     "¿Qué miden el FCV y el coeficiente de rechazo R?",
+     "FCV (factor de concentración volumétrica): compara el volumen inicial con el "
+     "volumen concentrado final. Dice cuánto se concentró el lote; en esta membrana suele "
+     "estar alrededor de 1.5.\n\nCoeficiente de rechazo R: mide qué fracción de la proteína "
+     "retiene la membrana, es decir, su selectividad. En operación óptima está entre 93 % y "
+     "95 %."),
+    ("Equipo",
+     "¿Qué significa que el coeficiente de rechazo caiga de forma drástica?",
+     "Que la membrana está dejando pasar proteína que antes retenía: perdió "
+     "selectividad.\n\nLa causa más probable es una ruptura física de los poros, que puede "
+     "ocurrir por presiones extremas o cambios bruscos de pH. Por eso las membranas son "
+     "frágiles y hay que operarlas dentro de sus límites."),
+    ("Procedimiento",
+     "¿Cómo se prepara el lactosuero antes de la práctica?",
+     "1. Llenar el tanque de alimentación con unos 80 L de agua.\n2. Pesar unos 5.21 kg "
+     "de lactosuero en polvo y agregarlo.\n3. Encender la bomba de mezclado y apoyarse con "
+     "una vara.\n4. Dejar hidratar la mezcla entre 5 y 10 min para que el polvo se disuelva "
+     "bien antes de filtrar."),
+    ("Procedimiento",
+     "¿Cómo se arranca la ultrafiltración en el equipo?",
+     "1. Verificar que todas las válvulas estén cerradas.\n2. Conectar el rechazo de vuelta "
+     "al tanque de alimentación y el permeado al tanque de recolección.\n3. Abrir las "
+     "válvulas 1 y 2 del panel.\n4. Ajustar la alimentación a unos 6 L/min en el rotámetro."
+     "\n5. Abrir la válvula de permeado unas 2 vueltas."),
+    ("Procedimiento",
+     "¿Qué datos se toman durante la práctica y cada cuánto?",
+     "Cada 8 minutos se registra:\n• el peso de permeado y de rechazo, para calcular "
+     "caudales y flux;\n• la presión de entrada y la de membrana, que suben con el "
+     "ensuciamiento;\n• los °Brix de alimentación, permeado y rechazo, para seguir el paso "
+     "de azúcares.\nSe continúa hasta terminar el ensayo."),
+    ("Procedimiento",
+     "¿Para qué sirve la purga con agua y cómo se sabe que terminó?",
+     "Sirve para limpiar las líneas de rechazo y de permeado, arrastrando los restos de "
+     "producto.\n\nSe abre el paso por cada línea entre 5 y 10 min hasta que el agua sale "
+     "clara. Luego se toma una muestra y se mide la conductividad: debe estar alrededor de "
+     "30–33 µS/cm. También se mide el flux de agua pura."),
+    ("Procedimiento",
+     "¿Cómo se hace la limpieza química y cómo se comprueba que funcionó?",
+     "Se recircula una solución de NaOH (soda cáustica) al 1 % p/v por el equipo, que "
+     "disuelve la capa de proteína que causa el fouling.\n\nDespués se purga otra vez con "
+     "agua, midiendo flux y conductividad. La limpieza funcionó cuando ambos vuelven a sus "
+     "valores iniciales; si no, se repite."),
+    ("Medición",
+     "¿Qué técnicas de laboratorio se usan para medir azúcares y proteína?",
+     "Azúcares (lactosa): grados Brix con un refractómetro. Es una medida cualitativa "
+     "que muestra si la lactosa está pasando al permeado, como se espera.\n\nProteína: "
+     "espectrofotometría, por ejemplo el método de Bradford. Da la concentración exacta "
+     "de proteína en cada corriente y permite calcular el rechazo R."),
 ]
 
 COLORES_CAT = {
@@ -98,7 +158,7 @@ def _html_flashcards():
   .chip { border:1px solid #cbd5e0; background:#fff; color:#2d3748; border-radius:16px;
           padding:4px 12px; font-size:13px; cursor:pointer; }
   .chip.activo { background:#1f4e78; color:#fff; border-color:#1f4e78; }
-  .escena { perspective: 1200px; width:100%; height:250px; cursor:pointer; }
+  .escena { perspective: 1200px; width:100%; height:340px; cursor:pointer; }
   .tarjeta { position:relative; width:100%; height:100%; transition: transform .6s;
              transform-style: preserve-3d; }
   .tarjeta.volteada { transform: rotateY(180deg); }
@@ -106,9 +166,11 @@ def _html_flashcards():
           padding:24px 32px; display:flex; flex-direction:column; justify-content:center;
           align-items:center; text-align:center; box-shadow: 0 4px 14px rgba(0,0,0,.12); }
   .frente { background:#fff; border-top:8px solid var(--c); }
-  .frente .preg { font-size:24px; font-weight:600; color:#1a202c; }
+  .frente .preg { font-size:23px; font-weight:600; color:#1a202c; line-height:1.35; max-width:620px; }
   .reverso { background:var(--c); color:#fff; transform: rotateY(180deg); }
-  .reverso .resp { font-size:18px; line-height:1.45; white-space:pre-line; }
+  .reverso { justify-content:flex-start; align-items:stretch; padding:40px 32px 34px; }
+  .reverso .resp { font-size:15.5px; line-height:1.5; white-space:pre-line; text-align:left;
+                   overflow-y:auto; flex:1; }
   .etiqueta { position:absolute; top:12px; left:16px; font-size:12px; font-weight:700;
               letter-spacing:.05em; text-transform:uppercase; color:var(--c); }
   .reverso .etiqueta { color:rgba(255,255,255,.85); }
@@ -186,7 +248,7 @@ def _seccion_flashcards():
         "Repasa los conceptos clave del gemelo digital. **Haz clic en la tarjeta** para "
         "voltearla, marca las que ya te sabes y repite las demás hasta dominar el mazo."
     )
-    components.html(_html_flashcards(), height=420)
+    components.html(_html_flashcards(), height=510)
 
 
 # =============================================================================
@@ -297,117 +359,90 @@ def _seccion_reto(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp):
 # 3. EVALUACIÓN FINAL
 # =============================================================================
 
-# Banco de preguntas de selección múltiple: (pregunta, correcta, [distractores], pestaña de origen)
-BANCO = [
-    ("¿Qué compone principalmente la corriente de permeado?",
-     "Agua, lactosa y sales minerales",
-     ["Proteínas y grasas", "Solo proteínas concentradas", "Solución de NaOH"], "Información General"),
-    ("En esta práctica, ¿qué se hace con la corriente de rechazo?",
-     "Se recircula al tanque de alimentación, donde la proteína se va concentrando",
-     ["Se desecha al desagüe", "Se mezcla con el permeado", "Se envía directo al tanque de NaOH"],
-     "Información General"),
-    ("¿Qué efecto tiene el fouling (ensuciamiento) sobre la operación?",
-     "El flux de permeado disminuye y las presiones en los manómetros aumentan",
-     ["El flux de permeado aumenta", "La concentración de proteína en el tanque disminuye",
-      "No tiene ningún efecto medible"], "Información General"),
-    ("¿Cuál es la diferencia entre flujo volumétrico y flux de permeado?",
-     "El flux es el flujo volumétrico dividido por el área de membrana",
-     ["Son exactamente lo mismo", "El flux es la masa de proteína retenida",
-      "El flux se mide en g/L"], "Información General"),
-    ("¿Qué modelo de flux se recomienda dentro del rango medido (0–40 min)?",
-     "Hermia n = 0 (formación de torta)",
-     ["Bloqueo completo (Hermia n = 2)", "Ley de Fick", "Modelo lineal"], "Guía de Usuario"),
-    ("¿Por qué el modelo exponencial es más confiable para proyectar tiempos largos?",
-     "Porque tiende a un flux mínimo físico J∞",
-     ["Porque tiene el R² más alto", "Porque no depende del tiempo",
-      "Porque fue el único modelo evaluado"], "Simulación / Guía de Usuario"),
-    ("¿Qué ecuación describe la concentración de proteína en el tanque?",
-     "1/C(t) − 1/C₀ = −K·t",
-     ["C(t) = C₀ − K·t", "C(t) = C₀·e^(K·t)", "C(t) = K·t²"], "Guía de Usuario"),
-    ("¿Qué supuesto principal se usa en el balance por lotes del tanque?",
-     "Que la cantidad de proteína que atraviesa la membrana tiende a cero",
-     ["Que el flux es constante", "Que el volumen del tanque no cambia",
-      "Que no hay recirculación del rechazo"], "Guía de Usuario"),
-    ("¿Cuál es el área de transferencia de la membrana del equipo?",
-     "4.8 m²", ["0.48 m²", "48 m²", "1.026 m²"], "Información General"),
-    ("¿Cuál es el volumen de operación estándar en el tanque de alimentación?",
-     "Unos 80 L", ["Unos 8 L", "Unos 800 L", "Unos 5.2 L"], "Información General"),
-    ("En operación óptima, ¿en qué rango está el coeficiente de rechazo R?",
-     "Entre 93 % y 95 %", ["Entre 50 % y 60 %", "Entre 10 % y 20 %", "Exactamente 100 %"],
-     "Información General"),
-    ("¿Qué indicaría una caída drástica del coeficiente de rechazo?",
-     "Una posible ruptura física en los poros de la membrana",
-     ["Que la membrana quedó más limpia", "Que aumentó la concentración de proteína",
-      "Que la bomba se apagó"], "Información General"),
-    ("¿Qué solución se usa para la limpieza química de la membrana?",
-     "NaOH al 1 % p/v", ["HCl concentrado", "Etanol al 70 %", "Agua destilada caliente"],
-     "Documentación"),
-    ("¿Qué se mide para verificar que el agua de purga es adecuada?",
-     "La conductividad (~30–33 µS/cm)", ["Los °Brix", "La absorbancia a 595 nm", "El pH con papel indicador"],
-     "Documentación"),
-    ("¿A qué flujo de alimentación se ajusta el rotámetro al iniciar?",
-     "Aproximadamente 6 L/min", ["Aproximadamente 60 L/min", "Aproximadamente 0.6 L/min",
-                                 "Aproximadamente 26 L/min"], "Documentación"),
-    ("¿Cada cuánto se toman datos durante la práctica?",
-     "Cada 8 minutos", ["Cada 30 segundos", "Cada hora", "Solo al inicio y al final"],
-     "Documentación"),
-    ("¿Qué técnica se usa para determinar el contenido de proteína?",
-     "Espectrofotometría (método de Bradford)",
-     ["Refractometría (°Brix)", "Conductimetría", "Titulación con NaOH"], "Información General"),
-    ("¿Para qué se miden los °Brix en las corrientes?",
-     "Para seguir de forma cualitativa el paso de azúcares (lactosa)",
-     ["Para medir la proteína exacta", "Para medir la presión de membrana",
-      "Para verificar la conductividad"], "Información General"),
-    ("Si haces circular agua por una membrana recién usada con lactosuero (sin limpieza química), ¿qué esperas?",
-     "El flux arranca bajo y se recupera poco a poco",
-     ["El flux es igual al de la membrana limpia desde el inicio", "El flux cae a cero",
-      "El flux sube por encima del de agua limpia"], "Simulación"),
-    ("¿Cómo se debe interpretar una simulación con t > 40 min?",
-     "Como una extrapolación orientativa, no como un dato verificado",
-     ["Como un dato experimental validado", "No se puede simular, la app lo bloquea",
-      "Como un error del modelo"], "Simulación"),
-    ("¿Cuánto lactosuero en polvo se agrega al tanque para preparar la alimentación?",
-     "Unos 5.21 kg", ["Unos 52 kg", "Unos 0.5 kg", "Unos 80 kg"], "Documentación"),
-    ("¿Cuál es una razón para usar un gemelo digital en esta práctica?",
-     "El tiempo limitado de laboratorio, el costo de la materia prima y la fragilidad de las membranas",
-     ["Reemplazar por completo la práctica presencial", "Evitar aprender los modelos matemáticos",
-      "Porque el equipo real no existe"], "Información General"),
-]
+from banco_preguntas import BANCO
 
-N_SELECCION = 10   # preguntas de selección múltiple por intento
+# Cuántas preguntas de selección múltiple salen de cada tema en cada intento
+REPARTO = {"Conceptos": 2, "Modelos": 2, "Equipo": 2, "Procedimiento": 2,
+           "Medición": 1, "Simulación": 1}
+N_SELECCION = sum(REPARTO.values())   # 10
+N_NUMERICAS = 2
 NOTA_APROBATORIA = 3.0
+DENSIDAD = 1.026  # kg/L, lactosuero
 
 
-def _generar_examen(PARAMS, modelo_C, modelo_J_torta):
-    """Arma un examen aleatorio (preguntas y opciones barajadas)."""
+def _elegir_sin_repetir(rng, candidatas, n, vistas):
+    """Toma n preguntas al azar, prefiriendo las que el estudiante no ha visto."""
+    nuevas = [q for q in candidatas if q[1] not in vistas]
+    if len(nuevas) >= n:
+        return rng.sample(nuevas, n)
+    vistas_ya = [q for q in candidatas if q[1] in vistas]
+    return nuevas + rng.sample(vistas_ya, n - len(nuevas))
+
+
+def _numericas(rng, PARAMS, modelo_C, modelo_J_torta, modelo_J_exp):
+    """Problemas numéricos con datos aleatorios. Se eligen N_NUMERICAS distintos."""
+    K, A = PARAMS["K"], PARAMS["A_M"]
+
+    def conc():
+        C0 = round(rng.uniform(6.0, 9.0), 1); t = rng.choice([16, 24, 32, 40])
+        return {"texto": f"Una corrida de lactosuero arranca con C₀ = {C0} g/L. Según el modelo del "
+                         f"gemelo digital, ¿cuál es la concentración de proteína en el tanque a los "
+                         f"{t} min? (Puedes usar la pestaña Simulación.)",
+                "correcta": float(modelo_C(t, C0)), "unidad": "g/L"}
+
+    def hermia():
+        t = rng.choice([10, 14, 20, 26, 30, 36, 40])
+        return {"texto": f"Con el modelo de Hermia n = 0 (formación de torta), ¿cuál es el flux de "
+                         f"permeado a los {t} min? (Puedes usar la pestaña Simulación.)",
+                "correcta": float(modelo_J_torta(t)), "unidad": "L/(m²·h)"}
+
+    def exponencial():
+        t = rng.choice([20, 30, 50, 60, 80, 100])
+        return {"texto": f"Con el modelo exponencial empírico, ¿cuál es el flux de permeado a los "
+                         f"{t} min? (Puedes usar la pestaña Simulación.)",
+                "correcta": float(modelo_J_exp(t)), "unidad": "L/(m²·h)"}
+
+    def tiempo():
+        C0 = round(rng.uniform(6.5, 8.5), 1); Cf = round(C0 * rng.uniform(1.25, 1.6), 1)
+        return {"texto": f"Con el balance por lotes (K = {K:.5f} (g/L)⁻¹·min⁻¹), ¿cuántos minutos "
+                         f"tarda la proteína en el tanque en pasar de {C0} g/L a {Cf} g/L?",
+                "correcta": (1 / C0 - 1 / Cf) / K, "unidad": "min"}
+
+    def flux_medido():
+        m = round(rng.uniform(9.0, 14.0), 2); dt = 8
+        return {"texto": f"En una toma de datos se recogen {m} kg de permeado en {dt} min. Con la "
+                         f"densidad del lactosuero (1.026 kg/L) y el área de la membrana ({A} m²), "
+                         f"¿cuál es el flux de permeado?",
+                "correcta": (m / DENSIDAD) / (dt / 60) / A, "unidad": "L/(m²·h)"}
+
+    def rechazo():
+        Cf = round(rng.uniform(6.5, 9.0), 2); Cp = round(Cf * rng.uniform(0.04, 0.08), 2)
+        return {"texto": f"La alimentación tiene {Cf} g/L de proteína y el permeado {Cp} g/L. "
+                         f"¿Cuál es el coeficiente de rechazo R = (1 − Cp/Cf)·100?",
+                "correcta": (1 - Cp / Cf) * 100, "unidad": "%", "tol_abs": 0.5}
+
+    tipos = [conc, hermia, exponencial, tiempo, flux_medido, rechazo]
+    return [dict(f(), tipo="numero", origen="Simulación / Guía de Usuario")
+            for f in rng.sample(tipos, N_NUMERICAS)]
+
+
+def _generar_examen(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp):
+    """Arma un examen aleatorio: preguntas de todos los temas, evitando repetir las
+    que el estudiante ya vio en intentos anteriores, con opciones barajadas."""
     rng = random.Random()
+    vistas = st.session_state.setdefault("preguntas_vistas", set())
+    elegidas = []
+    for tema, n in REPARTO.items():
+        elegidas += _elegir_sin_repetir(rng, [q for q in BANCO if q[0] == tema], n, vistas)
+    rng.shuffle(elegidas)
     preguntas = []
-    for preg, correcta, distractores, origen in rng.sample(BANCO, N_SELECCION):
+    for tema, preg, correcta, distractores, origen in elegidas:
+        vistas.add(preg)
         opciones = [correcta] + list(distractores)
         rng.shuffle(opciones)
         preguntas.append({"tipo": "opcion", "texto": preg, "opciones": opciones,
                           "correcta": correcta, "origen": origen})
-
-    # Preguntas numéricas con datos aleatorios (se pueden resolver con la pestaña Simulación)
-    C0 = round(rng.uniform(6.0, 9.0), 1)
-    t1 = rng.choice([16, 24, 32, 40])
-    C_t = float(modelo_C(t1, C0))
-    preguntas.append({
-        "tipo": "numero", "unidad": "g/L", "origen": "Simulación",
-        "texto": (f"Una corrida de lactosuero arranca con C₀ = {C0} g/L. Según el modelo del "
-                  f"gemelo digital, ¿cuál es la concentración de proteína en el tanque a los "
-                  f"{t1} min? (Puedes usar la pestaña Simulación.)"),
-        "correcta": C_t,
-    })
-    t2 = rng.choice([10, 20, 30, 40])
-    J_t = float(modelo_J_torta(t2))
-    preguntas.append({
-        "tipo": "numero", "unidad": "L/(m²·h)", "origen": "Simulación",
-        "texto": (f"Con el modelo de Hermia n = 0 (formación de torta), ¿cuál es el flux de "
-                  f"permeado a los {t2} min? (Puedes usar la pestaña Simulación.)"),
-        "correcta": J_t,
-    })
-    return preguntas
+    return preguntas + _numericas(rng, PARAMS, modelo_C, modelo_J_torta, modelo_J_exp)
 
 
 def _es_correcta(p, respuesta):
@@ -415,6 +450,8 @@ def _es_correcta(p, respuesta):
         return False
     if p["tipo"] == "opcion":
         return respuesta == p["correcta"]
+    if "tol_abs" in p:
+        return abs(respuesta - p["correcta"]) <= p["tol_abs"]
     return abs(respuesta - p["correcta"]) <= 0.03 * abs(p["correcta"])  # tolerancia ±3 %
 
 
@@ -477,7 +514,7 @@ def _certificado_pdf(datos):
     return buf.getvalue()
 
 
-def _seccion_evaluacion(PARAMS, modelo_C, modelo_J_torta, guardar_evaluacion):
+def _seccion_evaluacion(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp, guardar_evaluacion):
     ev = st.session_state.setdefault("evaluacion", {"estado": "inicio"})
 
     # ---------------------------------------------------------------- INICIO
@@ -485,8 +522,8 @@ def _seccion_evaluacion(PARAMS, modelo_C, modelo_J_torta, guardar_evaluacion):
         st.markdown(
             f"Pon a prueba lo que aprendiste en **todas** las pestañas del gemelo digital. "
             f"La evaluación tiene **{N_SELECCION} preguntas de selección múltiple** y "
-            f"**2 preguntas numéricas** que puedes resolver con el simulador. Las preguntas "
-            f"cambian en cada intento.\n\n"
+            f"**{N_NUMERICAS} problemas numéricos**. Las preguntas salen de un banco de "
+            f"{len(BANCO)}, cubren todos los temas y cambian en cada intento.\n\n"
             f"Al terminar recibes tu nota (0.0 a 5.0, se aprueba con {NOTA_APROBATORIA}) y una "
             f"**constancia en PDF** con un código de verificación para mostrarle a tu profesor."
         )
@@ -501,26 +538,59 @@ def _seccion_evaluacion(PARAMS, modelo_C, modelo_J_torta, guardar_evaluacion):
             else:
                 ev.update(estado="examen", nombre=nombre.strip(), correo=correo.strip(),
                           grupo=grupo.strip(), inicio=time.time(),
-                          preguntas=_generar_examen(PARAMS, modelo_C, modelo_J_torta))
+                          preguntas=_generar_examen(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp))
                 st.rerun()
         return
 
     # ---------------------------------------------------------------- EXAMEN
     if ev["estado"] == "examen":
-        st.info(f"Evaluación de **{ev['nombre']}** · Responde todas las preguntas y presiona "
-                f"**Enviar evaluación**. No podrás cambiar tus respuestas después de enviar.")
-        with st.form("form_examen"):
-            respuestas = []
-            for k, p in enumerate(ev["preguntas"], start=1):
-                st.markdown(f"**{k}. {p['texto']}**")
-                if p["tipo"] == "opcion":
-                    respuestas.append(st.radio("Respuesta", p["opciones"], index=None,
-                                               key=f"ev_p{k}", label_visibility="collapsed"))
-                else:
-                    respuestas.append(st.number_input(f"Respuesta en {p['unidad']}", value=None,
-                                                      step=0.01, format="%.2f", key=f"ev_p{k}"))
-                st.write("")
-            enviar = st.form_submit_button("Enviar evaluación", type="primary")
+        # Las respuestas se guardan en ev["resp"] (no solo en los widgets), así no se
+        # pierden si el estudiante va a otra pestaña (p. ej. Simulación) y regresa.
+        resp = ev.setdefault("resp", {})
+
+        def campo(k, p):
+            clave = f"ev_p{k}"
+            if clave not in st.session_state and k in resp:
+                st.session_state[clave] = resp[k]       # restaurar lo que ya había escrito
+            ya = clave in st.session_state
+            st.markdown(f"**{k}. {p['texto']}**")
+            if p["tipo"] == "opcion":
+                extra = {} if ya else {"index": None}
+                valor = st.radio("Respuesta", p["opciones"], key=clave,
+                                 label_visibility="collapsed", **extra)
+            else:
+                extra = {} if ya else {"value": None}
+                valor = st.number_input(f"Respuesta en {p['unidad']}", step=0.01,
+                                        format="%.2f", key=clave, **extra)
+            resp[k] = valor
+            st.write("")
+
+        st.info(f"Evaluación de **{ev['nombre']}** · Tus respuestas se guardan solas: puedes "
+                f"ir a otras pestañas y volver sin perderlas. Al final presiona **Enviar "
+                f"evaluación**; después de enviar ya no podrás cambiarlas.")
+
+        numericas = [p for p in ev["preguntas"] if p["tipo"] == "numero"]
+        opciones = [p for p in ev["preguntas"] if p["tipo"] == "opcion"]
+        orden = numericas + opciones          # los problemas numéricos van primero
+        ev["preguntas"] = orden
+
+        with st.container(border=True):
+            st.markdown("#### 🧮 Parte 1 · Problemas numéricos (hazlos primero)")
+            st.warning(
+                "**Antes de seguir:** anota los datos de estos problemas (C₀, tiempos, masas…). "
+                "Luego ve a la pestaña **Simulación** del menú lateral o resuélvelos con las "
+                "ecuaciones, y vuelve aquí a escribir tus resultados. Para volver: menú lateral "
+                "→ **🎓 Aprende y Evalúate** → pestaña **📝 Evaluación final**."
+            )
+            for k, p in enumerate(orden[:len(numericas)], start=1):
+                campo(k, p)
+
+        st.markdown("#### 📋 Parte 2 · Selección múltiple")
+        for k, p in enumerate(orden[len(numericas):], start=len(numericas) + 1):
+            campo(k, p)
+
+        respuestas = [resp.get(k) for k in range(1, len(orden) + 1)]
+        enviar = st.button("Enviar evaluación", type="primary")
         if enviar:
             faltan = [k for k, r in enumerate(respuestas, start=1) if r is None]
             if faltan:
@@ -580,28 +650,37 @@ def _seccion_evaluacion(PARAMS, modelo_C, modelo_J_torta, guardar_evaluacion):
                 bien = p["correcta"]
             else:
                 tu = f"{r:.2f} {p['unidad']}"
-                bien = f"{p['correcta']:.2f} {p['unidad']} (se acepta ±3 %)"
+                tol = f"±{p['tol_abs']}" if "tol_abs" in p else "±3 %"
+                bien = f"{p['correcta']:.2f} {p['unidad']} (se acepta {tol})"
             st.markdown(f"{'✅' if ok else '❌'} **{k}. {p['texto']}**  \n"
                         f"Tu respuesta: {tu}" + ("" if ok else f"  \nRespuesta correcta: **{bien}**")
                         + f"  \n_Repasa: pestaña {p['origen']}_")
 
     if st.button("🔁 Hacer un nuevo intento"):
+        for clave in [c for c in st.session_state.keys() if str(c).startswith("ev_p")]:
+            del st.session_state[clave]
         st.session_state.evaluacion = {"estado": "inicio"}
         st.rerun()
 
 
 def _panel_profesor(cargar_evaluaciones):
     with st.expander("👩‍🏫 Para el profesor: ver resultados de las evaluaciones"):
-        if not st.session_state.get("autenticado_admin"):
-            clave = st.text_input("Contraseña de administrador", type="password", key="clave_admin_eval")
-            if st.button("Ingresar", key="btn_admin_eval"):
+        # Contraseña propia de los profesores que manejan el equipo, distinta de la
+        # de administrador [admin] que aprueba/rechaza prácticas en "Sube tus Datos".
+        # En los Secrets:
+        # [profesores]
+        # password = "..."
+        if not st.session_state.get("autenticado_profesor"):
+            clave = st.text_input("Contraseña de profesores", type="password", key="clave_prof_eval")
+            if st.button("Ingresar", key="btn_prof_eval"):
                 try:
-                    correcta = st.secrets["admin"]["password"]
+                    correcta = st.secrets["profesores"]["password"]
                 except Exception:
-                    st.error("No se ha configurado la contraseña de administrador en los Secrets.")
+                    st.error("No se ha configurado la contraseña de profesores. Agrega una "
+                             "sección [profesores] con 'password' en los Secrets.")
                     return
                 if clave == correcta:
-                    st.session_state.autenticado_admin = True
+                    st.session_state.autenticado_profesor = True
                     st.rerun()
                 else:
                     st.error("Contraseña incorrecta.")
@@ -639,12 +718,15 @@ def pagina_aprende(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp,
         "Repasa con las flashcards, pon a prueba tu intuición con el modelo y, cuando te "
         "sientas listo, presenta la evaluación final."
     )
+    if st.session_state.get("evaluacion", {}).get("estado") == "examen":
+        st.info("📝 Tienes una evaluación en curso con tus respuestas guardadas. "
+                "Ábrela en la pestaña **📝 Evaluación final**.")
     tab1, tab2, tab3 = st.tabs(["🃏 Flashcards", "🧪 ¿Qué pasaría si...?", "📝 Evaluación final"])
     with tab1:
         _seccion_flashcards()
     with tab2:
         _seccion_reto(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp)
     with tab3:
-        _seccion_evaluacion(PARAMS, modelo_C, modelo_J_torta, guardar_evaluacion)
+        _seccion_evaluacion(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp, guardar_evaluacion)
         st.divider()
         _panel_profesor(cargar_evaluaciones)

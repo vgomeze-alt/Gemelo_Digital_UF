@@ -203,7 +203,21 @@ def _llamar_script(metodo, hoja="registros", **datos):
     else:
         r = requests.post(url, json={"token": token, "hoja": hoja, **datos}, timeout=20)
     r.raise_for_status()
-    resp = r.json()
+    try:
+        resp = r.json()
+    except ValueError:
+        # Google devolvió una página web en vez de datos: casi siempre es la URL o los permisos.
+        texto = r.text[:3000].lower()
+        if "accounts.google" in texto or "iniciar sesión" in texto or "sign in" in texto:
+            pista = ("la aplicación web pide iniciar sesión. En Apps Script, en "
+                     "'Quién tiene acceso', debe estar 'Cualquier usuario'.")
+        elif "doget" in texto or "dopost" in texto or "función de secuencia" in texto:
+            pista = ("el script publicado no tiene el código nuevo. Guarda el código y "
+                     "crea una implementación nueva (Implementar > Nueva implementación).")
+        else:
+            pista = ("revisa que url_script sea la URL de la aplicación web que termina "
+                     "en /exec y que el acceso sea 'Cualquier usuario'.")
+        raise RuntimeError("Google Sheets no respondió con datos: " + pista)
     if not resp.get("ok"):
         raise RuntimeError(f"Google Sheets respondió: {resp.get('error')}")
     return resp
@@ -293,7 +307,10 @@ def guardar_evaluacion(resultado):
 # smtp_port = 587
 #
 # [admin]
-# password = "la_clave_que_tú_quieras"
+# password = "la_clave_que_tú_quieras"   # aprueba/rechaza prácticas en "Sube tus Datos"
+#
+# [profesores]
+# password = "otra_clave"   # ver y verificar evaluaciones en "Aprende y Evalúate"
 #
 # Con Gmail, no funciona la contraseña normal de la cuenta: hay que activar
 # verificación en 2 pasos y generar una "Contraseña de aplicación" en
@@ -1452,14 +1469,17 @@ def datos():
             st.success("Archivo recibido. POR COMPLETAR: lógica de lectura, validación y "
                        "re-ajuste automático de los parámetros del modelo con estos datos.")
 
-            guardar_nuevo_registro(
-                nombre=nombre_usuario.strip(),
-                correo=correo_usuario.strip(),
-                tipo_practica=practica,
-                archivo_nombre=archivo.name,
-                tamano_bytes=archivo.size,
-                observaciones=observaciones.strip(),
-            )
+            try:
+                guardar_nuevo_registro(
+                    nombre=nombre_usuario.strip(),
+                    correo=correo_usuario.strip(),
+                    tipo_practica=practica,
+                    archivo_nombre=archivo.name,
+                    tamano_bytes=archivo.size,
+                    observaciones=observaciones.strip(),
+                )
+            except Exception as e:
+                st.session_state.aviso_registro = f"No se pudo guardar el registro en Google Sheets: {e}"
 
             enviado, error = enviar_notificacion_carga(
                 nombre_usuario=nombre_usuario.strip(),
@@ -1469,16 +1489,27 @@ def datos():
                 adjuntar_archivo=archivo,
                 observaciones=observaciones.strip(),
             )
+            # Se guarda el resultado para mostrarlo DESPUÉS del st.rerun() de abajo
+            # (si se muestra aquí, el rerun lo borra antes de que se vea).
             if enviado:
-                st.info(f"Se notificó por correo la carga realizada por **{nombre_usuario}**. "
-                        f"Queda pendiente de aprobación (ver abajo).")
+                st.session_state.aviso_carga = ("ok",
+                    f"Se notificó por correo la carga realizada por **{nombre_usuario}** "
+                    f"a: {st.secrets['email']['destinatario']}. Queda pendiente de aprobación (ver abajo).")
             else:
-                st.caption(f"No se pudo enviar la notificación por correo: {error}")
+                st.session_state.aviso_carga = ("error",
+                    f"El registro se guardó, pero **no se pudo enviar la notificación por correo**: {error}")
 
             # Reinicia el formulario: nombre, correo, archivo y observaciones
             # quedan vacíos de nuevo.
             st.session_state.form_datos_version += 1
             st.rerun()
+
+    aviso_reg = st.session_state.pop("aviso_registro", None)
+    if aviso_reg:
+        st.error(aviso_reg)
+    aviso = st.session_state.pop("aviso_carga", None)
+    if aviso:
+        (st.success if aviso[0] == "ok" else st.error)(aviso[1])
 
     # =========================================================================
     # HISTORIAL PÚBLICO (visible para cualquiera, sin contraseña)
@@ -1487,7 +1518,11 @@ def datos():
     st.subheader("📋 Historial de prácticas registradas")
     st.caption("Consulta pública: quién registró datos y si ya fue aprobado o rechazado.")
 
-    df_historial = cargar_registros()
+    try:
+        df_historial = cargar_registros()
+    except Exception as e:
+        st.error(f"No se pudo leer el historial. {e}")
+        df_historial = pd.DataFrame(columns=COLUMNAS_REGISTRO)
     if df_historial.empty:
         st.write("Todavía no hay ninguna práctica registrada.")
     else:
@@ -1528,7 +1563,11 @@ def datos():
             st.session_state.autenticado_admin = False
             st.rerun()
 
-        df_pend = cargar_registros()
+        try:
+            df_pend = cargar_registros()
+        except Exception as e:
+            st.error(f"No se pudieron leer los registros. {e}")
+            df_pend = pd.DataFrame(columns=COLUMNAS_REGISTRO)
         pendientes = df_pend[df_pend["estado"] == "Pendiente"]
 
         if pendientes.empty:
