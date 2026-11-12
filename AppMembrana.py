@@ -161,18 +161,62 @@ def modelo_J_enjuague(t, J_inicio, J_agua=PARAMS["J_agua"], k=PARAMS["k_enjuague
 # =============================================================================
 # REGISTRO DE CARGAS (para poder Aprobar / Rechazar después)
 # =============================================================================
-# Se guarda en un archivo CSV local (registros_carga.csv). Mientras la app no
-# se reinicie o se vuelva a desplegar, este archivo persiste entre sesiones.
-# Si necesitas que sobreviva incluso a reinicios del servidor, más adelante se
-# puede migrar a una base de datos o a Google Sheets, pero para empezar esto
-# es suficiente.
+# Los registros se guardan en una hoja de Google Sheets, para que NO se
+# pierdan cuando Streamlit Cloud reinicia o "duerme" la app (el disco del
+# servidor se borra en cada reinicio).
+#
+# La hoja tiene un Apps Script (ver apps_script/Codigo.gs) publicado como
+# aplicación web. La app le habla por internet con dos datos que van en los
+# Secrets (Streamlit Cloud > Settings > Secrets):
+#
+# [gsheets]
+# url_script = "https://script.google.com/macros/s/XXXX/exec"
+# token = "la_misma_clave_que_pusiste_en_TOKEN_dentro_del_script"
+#
+# Si esos secrets no están configurados, la app usa el CSV local como antes
+# (sirve para pruebas en tu computador, pero en la nube se borra).
 
 REGISTRO_PATH = "registros_carga.csv"
 COLUMNAS_REGISTRO = ["nombre", "correo", "tipo_practica", "archivo", "tamano_kb", "fecha", "estado", "observaciones"]
 
+# Resultados de la evaluación de la pestaña "Aprende y Evalúate" (pestaña
+# "evaluaciones" de la misma hoja de Google Sheets).
+EVAL_PATH = "evaluaciones.csv"
+COLUMNAS_EVAL = ["fecha", "nombre", "correo", "grupo", "nota", "correctas", "total", "tiempo_min", "codigo"]
 
+
+def _config_gsheets():
+    """Devuelve (url_script, token) o None si no está configurado."""
+    try:
+        cfg = st.secrets["gsheets"]
+        return cfg["url_script"], cfg["token"]
+    except Exception:
+        return None
+
+
+def _llamar_script(metodo, hoja="registros", **datos):
+    """Llama al Apps Script de la hoja y devuelve su respuesta (dict)."""
+    import requests
+    url, token = _config_gsheets()
+    if metodo == "GET":
+        r = requests.get(url, params={"token": token, "hoja": hoja}, timeout=20)
+    else:
+        r = requests.post(url, json={"token": token, "hoja": hoja, **datos}, timeout=20)
+    r.raise_for_status()
+    resp = r.json()
+    if not resp.get("ok"):
+        raise RuntimeError(f"Google Sheets respondió: {resp.get('error')}")
+    return resp
+
+
+@st.cache_data(ttl=60, show_spinner=False)
 def cargar_registros():
-    """Devuelve el DataFrame con todos los registros de cargas (o uno vacío)."""
+    """Devuelve el DataFrame con todos los registros de cargas (o uno vacío).
+    Se cachea 60 s para no consultar Google Sheets en cada clic; cada vez que
+    se escribe algo, la caché se limpia y se vuelve a leer."""
+    if _config_gsheets():
+        filas = _llamar_script("GET")["filas"]
+        return pd.DataFrame(filas, columns=COLUMNAS_REGISTRO)
     try:
         return pd.read_csv(REGISTRO_PATH)
     except FileNotFoundError:
@@ -180,8 +224,7 @@ def cargar_registros():
 
 
 def guardar_nuevo_registro(nombre, correo, tipo_practica, archivo_nombre, tamano_bytes, observaciones=""):
-    """Agrega una fila nueva con estado 'Pendiente' y guarda el archivo."""
-    df = cargar_registros()
+    """Agrega una fila nueva con estado 'Pendiente'."""
     nueva_fila = {
         "nombre": nombre,
         "correo": correo,
@@ -192,15 +235,48 @@ def guardar_nuevo_registro(nombre, correo, tipo_practica, archivo_nombre, tamano
         "estado": "Pendiente",
         "observaciones": observaciones,
     }
-    df = pd.concat([df, pd.DataFrame([nueva_fila])], ignore_index=True)
-    df.to_csv(REGISTRO_PATH, index=False)
+    if _config_gsheets():
+        _llamar_script("POST", accion="agregar", fila=nueva_fila)
+    else:
+        df = cargar_registros()
+        df = pd.concat([df, pd.DataFrame([nueva_fila])], ignore_index=True)
+        df.to_csv(REGISTRO_PATH, index=False)
+    cargar_registros.clear()
 
 
 def actualizar_estado_registro(indice, nuevo_estado):
     """Cambia el estado ('Aprobado' / 'Rechazado') de la fila con ese índice."""
-    df = cargar_registros()
-    df.loc[indice, "estado"] = nuevo_estado
-    df.to_csv(REGISTRO_PATH, index=False)
+    if _config_gsheets():
+        _llamar_script("POST", accion="estado", indice=int(indice), estado=nuevo_estado)
+    else:
+        df = cargar_registros()
+        df.loc[indice, "estado"] = nuevo_estado
+        df.to_csv(REGISTRO_PATH, index=False)
+    cargar_registros.clear()
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def cargar_evaluaciones():
+    """DataFrame con los resultados de la evaluación de 'Aprende y Evalúate'."""
+    if _config_gsheets():
+        filas = _llamar_script("GET", hoja="evaluaciones")["filas"]
+        return pd.DataFrame(filas, columns=COLUMNAS_EVAL)
+    try:
+        return pd.read_csv(EVAL_PATH)
+    except FileNotFoundError:
+        return pd.DataFrame(columns=COLUMNAS_EVAL)
+
+
+def guardar_evaluacion(resultado):
+    """Agrega una fila con el resultado de una evaluación."""
+    fila = {c: resultado[c] for c in COLUMNAS_EVAL}
+    if _config_gsheets():
+        _llamar_script("POST", hoja="evaluaciones", accion="agregar", fila=fila)
+    else:
+        df = cargar_evaluaciones()
+        df = pd.concat([df, pd.DataFrame([fila])], ignore_index=True)
+        df.to_csv(EVAL_PATH, index=False)
+    cargar_evaluaciones.clear()
 
 
 # =============================================================================
@@ -320,6 +396,7 @@ def enviar_notificacion_decision(correo_destino, nombre_usuario, tipo_practica, 
     except Exception as e:
         return False, str(e)
 
+@st.cache_data(show_spinner=False)
 def generar_plantilla_excel():
     """Genera en memoria (sin tocar el disco) el Excel de plantilla que las
     personas descargan, llenan y vuelven a subir en 'Sube tus Datos'.
@@ -467,8 +544,7 @@ def generar_plantilla_excel():
 
     buf = io.BytesIO()
     wb.save(buf)
-    buf.seek(0)
-    return buf
+    return buf.getvalue()  # bytes: se pueden cachear sin problemas
 
 # =============================================================================
 # PÁGINAS
@@ -1594,6 +1670,8 @@ if st.sidebar.button("Documentación", width="stretch"):
     st.session_state.pagina = "Documentacion"
 if st.sidebar.button("Guía de Usuario", width="stretch"):
     st.session_state.pagina = "Guia de Usuario"
+if st.sidebar.button("🎓 Aprende y Evalúate", width="stretch"):
+    st.session_state.pagina = "aprende"
 if st.sidebar.button("Sube tus Datos", width="stretch"):
     st.session_state.pagina = "datos"
 if st.sidebar.button("Encuesta de Percepción", width="stretch"):
@@ -1622,6 +1700,10 @@ elif st.session_state.pagina == "Documentacion":
     documentacion()
 elif st.session_state.pagina == "Guia de Usuario":
     guia_usuario()
+elif st.session_state.pagina == "aprende":
+    from aprende import pagina_aprende
+    pagina_aprende(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp,
+                   guardar_evaluacion, cargar_evaluaciones)
 elif st.session_state.pagina == "datos":
     datos()
 elif st.session_state.pagina == "encuesta":
