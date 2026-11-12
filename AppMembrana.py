@@ -161,18 +161,68 @@ def modelo_J_enjuague(t, J_inicio, J_agua=PARAMS["J_agua"], k=PARAMS["k_enjuague
 # =============================================================================
 # REGISTRO DE CARGAS (para poder Aprobar / Rechazar después)
 # =============================================================================
-# Se guarda en un archivo CSV local (registros_carga.csv). Mientras la app no
-# se reinicie o se vuelva a desplegar, este archivo persiste entre sesiones.
-# Si necesitas que sobreviva incluso a reinicios del servidor, más adelante se
-# puede migrar a una base de datos o a Google Sheets, pero para empezar esto
-# es suficiente.
+# Los registros se guardan en una hoja de Google Sheets, para que NO se
+# pierdan cuando Streamlit Cloud reinicia o "duerme" la app (el disco del
+# servidor se borra en cada reinicio).
+#
+# Requiere en los Secrets de la app (Streamlit Cloud > Settings > Secrets):
+#
+# [gsheets]
+# spreadsheet_id = "el_id_que_aparece_en_la_url_de_la_hoja"
+#
+# [gcp_service_account]
+# type = "service_account"
+# project_id = "..."
+# private_key_id = "..."
+# private_key = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+# client_email = "...@....iam.gserviceaccount.com"
+# client_id = "..."
+# token_uri = "https://oauth2.googleapis.com/token"
+#
+# (Es el contenido del archivo JSON de la cuenta de servicio.) La hoja debe
+# estar compartida como "Editor" con el client_email de la cuenta de servicio.
+#
+# Si esos secrets no están configurados, la app usa el CSV local como antes
+# (sirve para pruebas en tu computador, pero en la nube se borra).
 
 REGISTRO_PATH = "registros_carga.csv"
 COLUMNAS_REGISTRO = ["nombre", "correo", "tipo_practica", "archivo", "tamano_kb", "fecha", "estado", "observaciones"]
 
 
+@st.cache_resource(show_spinner=False)
+def _hoja_registros():
+    """Devuelve la pestaña de Google Sheets donde van los registros, o None
+    si no está configurada (en ese caso se usa el CSV local)."""
+    try:
+        cred_info = dict(st.secrets["gcp_service_account"])
+        hoja_id = st.secrets["gsheets"]["spreadsheet_id"]
+    except Exception:
+        return None
+    import gspread
+    from google.oauth2.service_account import Credentials
+    cred = Credentials.from_service_account_info(
+        cred_info, scopes=["https://www.googleapis.com/auth/spreadsheets"]
+    )
+    libro = gspread.authorize(cred).open_by_key(hoja_id)
+    try:
+        hoja = libro.worksheet("registros")
+    except gspread.WorksheetNotFound:
+        hoja = libro.add_worksheet("registros", rows=1000, cols=len(COLUMNAS_REGISTRO))
+    # Si la pestaña está vacía, escribe los encabezados.
+    if not hoja.row_values(1):
+        hoja.append_row(COLUMNAS_REGISTRO, value_input_option="RAW")
+    return hoja
+
+
+@st.cache_data(ttl=60, show_spinner=False)
 def cargar_registros():
-    """Devuelve el DataFrame con todos los registros de cargas (o uno vacío)."""
+    """Devuelve el DataFrame con todos los registros de cargas (o uno vacío).
+    Se cachea 60 s para no consultar Google Sheets en cada clic; cada vez que
+    se escribe algo, la caché se limpia y se vuelve a leer."""
+    hoja = _hoja_registros()
+    if hoja is not None:
+        filas = hoja.get_all_records(expected_headers=COLUMNAS_REGISTRO)
+        return pd.DataFrame(filas, columns=COLUMNAS_REGISTRO)
     try:
         return pd.read_csv(REGISTRO_PATH)
     except FileNotFoundError:
@@ -180,8 +230,7 @@ def cargar_registros():
 
 
 def guardar_nuevo_registro(nombre, correo, tipo_practica, archivo_nombre, tamano_bytes, observaciones=""):
-    """Agrega una fila nueva con estado 'Pendiente' y guarda el archivo."""
-    df = cargar_registros()
+    """Agrega una fila nueva con estado 'Pendiente'."""
     nueva_fila = {
         "nombre": nombre,
         "correo": correo,
@@ -192,15 +241,27 @@ def guardar_nuevo_registro(nombre, correo, tipo_practica, archivo_nombre, tamano
         "estado": "Pendiente",
         "observaciones": observaciones,
     }
-    df = pd.concat([df, pd.DataFrame([nueva_fila])], ignore_index=True)
-    df.to_csv(REGISTRO_PATH, index=False)
+    hoja = _hoja_registros()
+    if hoja is not None:
+        hoja.append_row([nueva_fila[c] for c in COLUMNAS_REGISTRO], value_input_option="RAW")
+    else:
+        df = cargar_registros()
+        df = pd.concat([df, pd.DataFrame([nueva_fila])], ignore_index=True)
+        df.to_csv(REGISTRO_PATH, index=False)
+    cargar_registros.clear()
 
 
 def actualizar_estado_registro(indice, nuevo_estado):
     """Cambia el estado ('Aprobado' / 'Rechazado') de la fila con ese índice."""
-    df = cargar_registros()
-    df.loc[indice, "estado"] = nuevo_estado
-    df.to_csv(REGISTRO_PATH, index=False)
+    hoja = _hoja_registros()
+    if hoja is not None:
+        # Fila 1 = encabezados, así que el registro con índice i está en la fila i + 2.
+        hoja.update_cell(int(indice) + 2, COLUMNAS_REGISTRO.index("estado") + 1, nuevo_estado)
+    else:
+        df = cargar_registros()
+        df.loc[indice, "estado"] = nuevo_estado
+        df.to_csv(REGISTRO_PATH, index=False)
+    cargar_registros.clear()
 
 
 # =============================================================================
@@ -320,6 +381,7 @@ def enviar_notificacion_decision(correo_destino, nombre_usuario, tipo_practica, 
     except Exception as e:
         return False, str(e)
 
+@st.cache_data(show_spinner=False)
 def generar_plantilla_excel():
     """Genera en memoria (sin tocar el disco) el Excel de plantilla que las
     personas descargan, llenan y vuelven a subir en 'Sube tus Datos'.
@@ -467,8 +529,7 @@ def generar_plantilla_excel():
 
     buf = io.BytesIO()
     wb.save(buf)
-    buf.seek(0)
-    return buf
+    return buf.getvalue()  # bytes: se pueden cachear sin problemas
 
 # =============================================================================
 # PÁGINAS

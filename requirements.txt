@@ -1,3 +1,5 @@
 streamlit
 matplotlib
 openpyxl
+gspread
+google-auth
