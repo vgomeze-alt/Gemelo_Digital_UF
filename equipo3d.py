@@ -98,15 +98,6 @@ COMPONENTES = {
                  "en los ensayos preliminares."),
         "fuente": "Manual (componente 10) · Tesis (caracterización)",
     },
-    "bombaDosificadora": {
-        "nombre": "Dosificadora (no se usa como bomba aparte)",
-        "desc": ("Dispositivo verde del equipo con su botón DOSIFICADORA en el "
-                 "tablero. En la operación actual NO se usa como una bomba aparte: la "
-                 "limpieza sale del mismo tanque azul, impulsada por la MISMA bomba "
-                 "con la que se alimenta el lactosuero; el NaOH al 1 % p/v se prepara "
-                 "manualmente en ese tanque."),
-        "fuente": "Aclaración del laboratorio",
-    },
     "bombaLavado": {
         "nombre": "Bomba de lavado (del equipo)",
         "desc": ("Bomba propia del equipo, montada en la base (cabezal inoxidable y "
