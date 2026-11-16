@@ -223,7 +223,7 @@ def _html_escena(j_ratio, j_curva, c_curva):
 </div>
 <div id="hint">Arrastra para rotar · rueda para acercar · clic en un componente</div>
 <div id="tarjeta"><button class="cerrar" onclick="document.getElementById('tarjeta').style.display='none'">✕</button>
-  <h3 id="tN"></h3><p id="tD"></p><div class="fuente" id="tF"></div></div>
+  <h3 id="tN"></h3><p id="tD"></p></div>
 <div id="leyenda"><b>Líneas (colores del P&ID)</b><br>
   Entrada<span style="background:#1fa23a"></span> Permeado<span style="background:#1565d8"></span><br>
   Rechazo<span style="background:#d8342c"></span> Lavado<span style="background:#18b8c4"></span>
@@ -250,30 +250,3 @@ def pagina_equipo3d(PARAMS, modelo_J_torta, modelo_C):
     c_curva = modelo_C(t, float(PARAMS["C0_valido"])).round(2).tolist()
     components.html(_html_escena(tuple(j_ratio), tuple(j_curva), tuple(c_curva)),
                     height=660, scrolling=False)
-    st.caption(
-        "Modelo esquemático: los componentes, las válvulas, los ciclos y la ficha técnica "
-        "están documentados (manual, tesis y P&ID de RIELCO); las dimensiones, proporciones "
-        "y el recorrido exacto de las tuberías son supuestos de representación."
-    )
-    with st.expander("📘 Fuentes y correspondencia de válvulas"):
-        st.markdown(
-            "- **Manual del laboratorio:** componentes 1–10, ciclos por válvulas "
-            "(UF = 1+2, lavado rechazo = 1+3, lavado permeado = 1+4), válvula roja en vuelta 2.\n"
-            "- **Tesis (Tabla 7 y sección 2.3):** ficha de la membrana (PVC Hollow Fiber, "
-            "100 kDa, 4.8 m², presión máx. 0.4 MPa) y los 9 subsistemas del equipo.\n"
-            "- **P&ID del fabricante (RIELCO, Anexo M):** VAL1 entrada · VAL2 permeado · "
-            "VAL3 rechazo · VAL4 enjuague · VAL5 aire; manómetros PI 1.01–1.05. El P&ID "
-            "está dibujado para producción de agua ultrapura, por lo que el destino de las "
-            "salidas difiere del uso con lactosuero (aquí el rechazo se recircula al tanque).\n"
-            "- **Nota:** la guía If_11 numera las válvulas manuales del tablero del 1 al 9 "
-            "(la 9 es la reguladora roja); el panel eléctrico rotula V1–V5. En esta escena "
-            "se usan los ciclos del manual con la numeración V1–V5 del panel.\n"
-            "- **Operación real del laboratorio** (aclaración del equipo de trabajo): no hay "
-            "tanque de lavado ni tanque de químico dedicados; la limpieza se hace desocupando "
-            "los tanques azules, llenándolos con agua y agregando el NaOH manualmente. La "
-            "bomba del equipo (BOMBA LAVADO, en la base) es distinta de la bomba de "
-            "alimentación, que es externa.\n"
-            "- **Interior de la membrana:** módulo *inside-out* (ficha de módulos UF-4046 y "
-            "Fig. 4 de la tesis): alimentación por el lumen de las fibras, permeado a través "
-            "de la pared, concentrado de largo; el botón 🔬 lo muestra animado."
-        )

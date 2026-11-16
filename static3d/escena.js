@@ -637,8 +637,6 @@ canvas.addEventListener("pointerup", ev => {
   if (!info) return;
   document.getElementById("tN").textContent = info.nombre;
   document.getElementById("tD").textContent = info.desc;
-  document.getElementById("tF").innerHTML = "<b>Fuente:</b> " + info.fuente +
-    "<br><b>Geometría:</b> proporciones supuestas (esquemática)";
   document.getElementById("tarjeta").style.display = "block";
 });
 
