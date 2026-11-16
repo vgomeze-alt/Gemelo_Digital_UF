@@ -164,11 +164,6 @@ cil(bLav, 0.075, 0.07, M.acero, 0.29, 0.44, 0.1, "z");              // cabezal i
 caja(bLav, 0.3, 0.03, 0.16, M.aceroOsc, 0.18, 0.375, 0.1);
 registrar(bLav);
 
-const bDos = grupo("bombaDosificadora");
-caja(bDos, 0.1, 0.13, 0.09, M.verde, 0.62, 1.45, -0.12);
-cil(bDos, 0.025, 0.05, M.blanco, 0.62, 1.54, -0.12);
-registrar(bDos);
-
 // ------------------------------------------------------------- tanques
 function barril(cid, x, z, r, h, ladoEquipo) {
   const g = grupo(cid);
@@ -328,6 +323,85 @@ for (let i = 0; i < 14; i++) {
   m.userData = { fase: Math.random(), r: 0.025 + Math.random() * 0.045, ang: Math.random() * 6.28 };
   interiorG.add(m); pBurbujas.push(m);
 }
+function etiqueta(txt, color, ancho) {
+  const c = document.createElement("canvas");
+  c.width = 640; c.height = 56;
+  const g = c.getContext("2d");
+  g.font = "bold 30px Arial";
+  g.fillStyle = "rgba(255,255,255,0.88)";
+  const w = g.measureText(txt).width + 22;
+  g.fillRect(0, 4, w, 44);
+  g.fillStyle = color;
+  g.fillText(txt, 11, 36);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false }));
+  sp.scale.set(ancho, ancho * 56 / 640, 1);
+  sp.center.set(0, 0.5);
+  return sp;
+}
+
+const FX = 0.42, FY = 1.12, FZ = 0.5, FR = 0.055, FH = 0.95;   // fibra ampliada
+const fibraG = new THREE.Group();
+fibraG.visible = false;
+scene.add(fibraG);
+const paredFibra = new THREE.Mesh(
+  new THREE.CylinderGeometry(FR, FR, FH, 24, 1, true),
+  new THREE.MeshPhongMaterial({ color: 0xdedcd2, transparent: true, opacity: 0.3,
+                                side: THREE.DoubleSide, depthWrite: false }));
+paredFibra.position.set(FX, FY, FZ);
+paredFibra.userData.cid = "membrana";
+clicables.push(paredFibra);
+fibraG.add(paredFibra);
+[FY - FH / 2, FY + FH / 2].forEach(y => {
+  const aro = new THREE.Mesh(new THREE.TorusGeometry(FR, 0.006, 8, 24), M.negro);
+  aro.rotation.x = Math.PI / 2;
+  aro.position.set(FX, y, FZ);
+  fibraG.add(aro);
+});
+const CAKE_R = 0.048;
+const cake = new THREE.Mesh(
+  new THREE.CylinderGeometry(CAKE_R, CAKE_R, FH * 0.97, 24, 1, true),
+  new THREE.MeshPhongMaterial({ color: 0xc08a3e, transparent: true, opacity: 0.0,
+                                side: THREE.DoubleSide }));
+cake.position.set(FX, FY, FZ);
+cake.userData.cid = "membrana";
+fibraG.add(cake);
+// líneas que conectan la fibra ampliada con el módulo real
+[[0.86, 1.45], [0.86, 0.8]].forEach(pt => {
+  const geo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(pt[0], pt[1], 0.05), new THREE.Vector3(FX + FR, FY + (pt[1] > 1.1 ? FH / 2 : -FH / 2), FZ)]);
+  fibraG.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x8aa0b4 })));
+});
+const etProt = etiqueta("Proteína → se acumula (torta)", "#2e7d32", 0.5);
+etProt.position.set(FX + 0.08, FY + 0.36, FZ);
+fibraG.add(etProt);
+const etAgua = etiqueta("Agua, lactosa y sales → atraviesan", "#1565d8", 0.5);
+etAgua.position.set(FX + 0.08, FY - 0.08, FZ);
+fibraG.add(etAgua);
+const etFib = etiqueta("Una fibra, ampliada", "#213547", 0.4);
+etFib.position.set(FX - 0.1, FY + FH / 2 + 0.1, FZ);
+fibraG.add(etFib);
+
+const fAgua = [], fProt = [], fPegadas = [];
+for (let i = 0; i < 26; i++) {                     // lo que permea (azul)
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.0065, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0x4d9fe8 }));
+  m.userData = { fase: Math.random(), ySal: 0.15 + Math.random() * 0.7, ang: Math.random() * 6.28, r0: Math.random() * 0.025 };
+  fibraG.add(m); fAgua.push(m);
+}
+for (let i = 0; i < 12; i++) {                     // proteína que sigue (verde)
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0x2e7d32 }));
+  m.userData = { fase: Math.random(), ang: Math.random() * 6.28, r0: Math.random() * 0.02 };
+  fibraG.add(m); fProt.push(m);
+}
+for (let i = 0; i < 26; i++) {                     // proteína ya pegada a la pared
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.0105, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0x2e7d32 }));
+  m.userData = { ang: Math.random() * 6.28, y: (Math.random() - 0.5) * FH * 0.9 };
+  m.visible = false;
+  fibraG.add(m); fPegadas.push(m);
+}
+
 let interiorOn = false;
 let vistaPrev = null;
 let minuto = 0;
@@ -349,7 +423,7 @@ function setMinuto(v) {
 function textoFase() {
   const m = Math.round(minuto), jr = JRATIO[m];
   if (cicloActual === "uf") {
-    if (m < 4) return ["🟢 Membrana limpia", "El lactosuero entra por dentro de cada fibra. El flux arranca en su máximo (~" + JCURVE[0].toFixed(0) + " L/m²·h) y las primeras proteínas, demasiado grandes para los poros, comienzan a depositarse en la pared interna."];
+    if (m < 4) return ["🟢 Membrana limpia", "Mira la FIBRA AMPLIADA de la izquierda: el lactosuero entra por dentro de cada fibra. El flux arranca en su máximo (~" + JCURVE[0].toFixed(0) + " L/m²·h) y las primeras proteínas, demasiado grandes para los poros, comienzan a depositarse en la pared interna."];
     if (m < 15) return ["🟠 Se forma la torta", "La capa de proteína (ámbar) crece sobre la pared de las fibras y suma una resistencia extra: el flux cae rápido. El agua, la lactosa y las sales siguen atravesando hacia la carcasa."];
     if (m < 30) return ["🟤 La torta se compacta", "La capa ya formada crece más despacio y se compacta: la caída del flux se frena. En el tanque, el rechazo que retorna concentra la proteína cada vez más rápido."];
     return ["🔴 Final de la práctica", "La torta domina la resistencia: el flux queda en ~" + (100 * jr).toFixed(0) + " % del inicial. Es el momento de parar y lavar la membrana."];
@@ -364,8 +438,18 @@ function textoFase() {
 }
 
 function refrescarInterior() {
+  // fibra ampliada: la torta cierra el canal y la proteína pegada aumenta
+  const fCake = Math.max(0.03, 1 - 0.62 * tortaNivel);
+  cake.scale.set(fCake, 1, fCake);
+  cake.material.opacity = tortaNivel < 0.02 ? 0 : 0.55 + 0.35 * tortaNivel;
+  fPegadas.forEach((m, i) => {
+    m.visible = interiorOn && i < Math.round(tortaNivel * fPegadas.length);
+    const rr = CAKE_R * fCake + 0.004;
+    m.position.set(FX + Math.cos(m.userData.ang) * rr, FY + m.userData.y,
+                   FZ + Math.sin(m.userData.ang) * rr);
+  });
   // torta sobre las fibras y tinte de la carcasa
-  tortas.forEach(t => { t.material.opacity = interiorOn ? 0.15 + 0.7 * tortaNivel : 0; });
+  tortas.forEach(t => { t.material.opacity = interiorOn ? 0.4 * tortaNivel : 0; });
   retenidos.forEach((m, i) => { m.visible = interiorOn && i < Math.round(tortaNivel * retenidos.length); });
   const col = new THREE.Color(0xf2f2ee).lerp(new THREE.Color(0xcfa05e), tortaNivel);
   matMembrana.color.copy(col);
@@ -420,6 +504,7 @@ function dibujarGraficas() {
 function verInterior(on) {
   interiorOn = on;
   interiorG.visible = on;
+  fibraG.visible = on;
   matMembrana.transparent = on;
   matMembrana.opacity = on ? 0.22 : 1.0;
   matMembrana.depthWrite = !on;
@@ -430,8 +515,8 @@ function verInterior(on) {
   refrescarInterior();
   if (on) {
     vistaPrev = { pos: camera.position.clone(), tgt: controls.target.clone() };
-    camera.position.set(2.15, 1.25, 1.3);
-    controls.target.set(0.95, 1.1, 0);
+    camera.position.set(1.45, 1.45, 2.25);
+    controls.target.set(0.68, 1.1, 0.25);
   } else if (vistaPrev) {
     camera.position.copy(vistaPrev.pos);
     controls.target.copy(vistaPrev.tgt);
@@ -481,6 +566,8 @@ function aplicarCiclo(c) {
   // color de lo que circula por dentro de las fibras según el modo
   const colAlim = c === "uf" ? 0xd9cf9e : (c === "quim" ? 0x18b8c4 : 0x7fd4ff);
   pAlimFib.forEach(m => m.material.color.setHex(colAlim));
+  const colAgua = c === "quim" ? 0x18b8c4 : (c === "uf" ? 0x4d9fe8 : 0x7fd4ff);
+  fAgua.forEach(m => m.material.color.setHex(colAgua));
   if (c === "uf") setMinuto(minuto); else refrescarInterior();
 }
 
@@ -608,6 +695,39 @@ function animar() {
                      Math.sin(m.userData.ang) * m.userData.r);
     });
   }
+  if (interiorOn && cicloActual !== "off") {
+    const retroF = cicloActual === "retro";
+    const fC = Math.max(0.03, 1 - 0.62 * tortaNivel);
+    const rLum = Math.max(0.012, CAKE_R * fC - 0.01);
+    const velF = cicloActual === "uf" ? 0.3 + 0.7 * jr : 1;
+    fAgua.forEach(m => {
+      m.visible = true;
+      m.userData.fase = (m.userData.fase + 0.16 * velF * dt) % 1;
+      let p = retroF ? 1 - m.userData.fase : m.userData.fase;
+      const yBase = FY - FH * 0.485;
+      if (p < m.userData.ySal) {                        // sube por el lumen
+        m.position.set(FX + Math.cos(m.userData.ang) * Math.min(m.userData.r0, rLum * 0.8),
+                       yBase + p * FH * 0.97,
+                       FZ + Math.sin(m.userData.ang) * Math.min(m.userData.r0, rLum * 0.8));
+      } else {                                          // atraviesa la pared
+        const q = (p - m.userData.ySal) / (1 - m.userData.ySal);
+        const r = rLum * 0.8 + (FR + 0.05 - rLum * 0.8) * q;
+        m.position.set(FX + Math.cos(m.userData.ang) * r,
+                       yBase + m.userData.ySal * FH * 0.97 + q * 0.04,
+                       FZ + Math.sin(m.userData.ang) * r);
+      }
+    });
+    const verProt = cicloActual === "uf";
+    fProt.forEach(m => {
+      m.visible = verProt;
+      if (!verProt) return;
+      m.userData.fase = (m.userData.fase + 0.11 * velF * dt) % 1;
+      const r = Math.min(m.userData.r0, rLum * 0.55);
+      m.position.set(FX + Math.cos(m.userData.ang + m.userData.fase * 2.5) * r,
+                     FY - FH * 0.485 + m.userData.fase * FH * 0.97,
+                     FZ + Math.sin(m.userData.ang + m.userData.fase * 2.5) * r);
+    });
+  } else { fAgua.forEach(m => (m.visible = false)); fProt.forEach(m => (m.visible = false)); }
   Object.entries(tubos).forEach(([id, t]) => {
     if (!t.activo) return;
     const esPermeado = id.startsWith("permeado");
