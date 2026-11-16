@@ -31,10 +31,12 @@ COMPONENTES = {
         "nombre": "Tanque de alimentación",
         "desc": ("Contiene el lactosuero reconstituido: capacidad total de 120–140 L y "
                  "volumen de operación de 80 L. El rechazo retorna aquí (operación en "
-                 "reciclo) y la proteína se concentra con el tiempo. Debajo tiene una "
-                 "báscula electrónica para registrar el peso. Para la limpieza química "
-                 "se desocupa, se llena con agua y se agrega el NaOH manualmente: no "
-                 "hay un tanque de lavado dedicado."),
+                 "reciclo) y la proteína se concentra con el tiempo. Tiene conexión "
+                 "por abajo y por arriba: por la salida inferior la mezcla va a la "
+                 "bomba y de ahí al equipo; por arriba recibe la manguera de retorno "
+                 "del rechazo. Va sobre una báscula para seguir el peso. Para la "
+                 "limpieza química se desocupa, se llena con agua y se agrega el NaOH "
+                 "manualmente: no hay un tanque de lavado dedicado."),
         "fuente": "Manual (componentes 1 y 9) · If_11 · aclaración del laboratorio",
     },
     "bombaAlimentacion": {
@@ -121,15 +123,25 @@ COMPONENTES = {
     },
     "tanquePermeado": {
         "nombre": "Tanque de recolección de permeado",
-        "desc": ("Recibe el permeado (agua, lactosa y sales). Sobre una báscula "
-                 "electrónica: su peso cada 8 min, con la densidad y el área de "
-                 "membrana, da el flux J."),
-        "fuente": "Manual (componentes 8 y 9)",
+        "desc": ("Recibe por arriba la manguera delgada del permeado (agua, lactosa y "
+                 "sales) y tiene válvula inferior para desocuparlo. Va sobre una "
+                 "báscula electrónica: su peso cada 8 min, con la densidad y el área "
+                 "de membrana, da el flux J."),
+        "fuente": "Manual (componentes 8 y 9) · fotos",
+    },
+    "canecaResiduos": {
+        "nombre": "Caneca de residuos de la limpieza química",
+        "desc": ("Recipiente aparte donde se recoge la solución de NaOH usada: el "
+                 "químico no se envía al drenaje, se recoge aquí y luego se desecha "
+                 "en el punto indicado por el laboratorio."),
+        "fuente": "Aclaración del laboratorio",
     },
     "drenaje": {
         "nombre": "Drenaje",
-        "desc": "Salida al desagüe usada en los ciclos de lavado y purga de las líneas.",
-        "fuente": "P&ID · Manual (purgas)",
+        "desc": ("Salida al desagüe usada en los lavados y purgas CON AGUA. La "
+                 "solución química usada no va aquí: se recoge en la caneca de "
+                 "residuos."),
+        "fuente": "P&ID · Manual (purgas) · aclaración del laboratorio",
     },
     "tomaAgua": {
         "nombre": "Toma de agua de red",
@@ -141,12 +153,14 @@ COMPONENTES = {
 
 CICLOS = {
     "off": {"etiqueta": "⏹ Detenido", "valvulas": [], "detalle": "Equipo apagado. Haz clic en los componentes para conocerlos."},
-    "uf": {"etiqueta": "🥛 Ultrafiltración (V1+V2)", "valvulas": [1, 2],
-           "detalle": "Lactosuero → bomba → microfiltro → membrana. El rechazo (rojo) retorna al tanque y el permeado (azul) va al tanque de recolección."},
-    "lavR": {"etiqueta": "🚿 Lavado línea de rechazo (V1+V3)", "valvulas": [1, 3],
-             "detalle": "Agua de red por la línea de rechazo hacia el drenaje, 5–10 min hasta que salga clara (~30–33 µS/cm)."},
-    "lavP": {"etiqueta": "🚿 Lavado línea de permeado (V1+V4)", "valvulas": [1, 4],
-             "detalle": "Agua de red por la línea de permeado hacia el drenaje, para limpiar el interior de las fibras."},
+    "uf": {"etiqueta": "🥛 Operación con lactosuero (V1+V2)", "valvulas": [1, 2],
+           "detalle": "La mezcla sale por ABAJO del tanque hacia la bomba y el equipo. Por ARRIBA del tanque regresa el rechazo (rojo, manguera gruesa, con la proteína) y el permeado (azul, manguera delgada) va al otro tanque, sobre su báscula."},
+    "lavR": {"etiqueta": "🚿 Lavado con agua: línea de rechazo (V1+V3)", "valvulas": [1, 3],
+             "detalle": "Agua de red por la línea de rechazo hacia el DRENAJE, 5–10 min hasta que salga clara (~30–33 µS/cm)."},
+    "lavP": {"etiqueta": "🚿 Lavado con agua: línea de permeado (V1+V4)", "valvulas": [1, 4],
+             "detalle": "Agua de red por la línea de permeado hacia el DRENAJE, para limpiar el interior de las fibras."},
+    "quim": {"etiqueta": "🧪 Limpieza química (NaOH) → caneca", "valvulas": [1, 3],
+             "detalle": "El NaOH al 1 % se prepara manualmente en el tanque azul desocupado; la bomba de lavado lo recircula por la membrana y la solución usada se recoge en la CANECA de residuos (no va al drenaje) para desecharla en el punto indicado. Recorrido representativo."},
     "retro": {"etiqueta": "💨 Retrolavado + aire (V5)", "valvulas": [5],
               "detalle": "Agua del tanque azul (con NaOH agregado manualmente si es limpieza química), impulsada por la bomba de lavado en contraflujo, más aire comprimido: desprende la torta (cada 15–60 min, 30–60 s)."},
 }
@@ -159,7 +173,6 @@ def _libs_three():
     return three, orbit
 
 
-@st.cache_data(show_spinner=False)
 def _html_escena(j_ratio):
     three, orbit = _libs_three()
     plantilla = (_AQUI / "static3d" / "escena.js").read_text(encoding="utf-8")
