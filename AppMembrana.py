@@ -1839,7 +1839,7 @@ elif st.session_state.pagina == "Guia de Usuario":
     guia_usuario()
 elif st.session_state.pagina == "equipo3d":
     from equipo3d import pagina_equipo3d
-    pagina_equipo3d(PARAMS, modelo_J_torta)
+    pagina_equipo3d(PARAMS, modelo_J_torta, modelo_C)
 elif st.session_state.pagina == "aprende":
     from aprende import pagina_aprende
     pagina_aprende(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp,
