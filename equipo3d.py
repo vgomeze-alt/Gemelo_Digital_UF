@@ -1,0 +1,249 @@
+# equipo3d.py
+# Pestaña "Equipo 3D": representación tridimensional interactiva del equipo de
+# ultrafiltración MARTIN MTUF-PVC-4046 (Ref. laboratorio AI-UF-1-4).
+#
+# FUENTES de la información mostrada (cada tarjeta cita la suya):
+#   [Manual]  Manual de operación del laboratorio (Multimedia/Documentacion).
+#   [Tesis]   Documento de investigación: Tabla 7 (ficha de la membrana),
+#             sección 2.3 (9 componentes) y ensayos preliminares.
+#   [P&ID]    Diagrama P&ID del fabricante (RIELCO, 2024; Anexo M de la tesis):
+#             VAL1 entrada, VAL2 permeado, VAL3 rechazo, VAL4 enjuague, VAL5 aire;
+#             manómetros PI 1.01–1.05; colores de línea verde/azul/rojo.
+#   [Fotos]   Fotografías del equipo en el laboratorio (AI-UF-1-4).
+#   [Supuesto] Lo que NO está documentado: dimensiones y proporciones de las
+#             piezas y el recorrido exacto de las tuberías (simplificado del P&ID).
+#
+# La geometría es esquemática-fiel: topología y componentes documentados,
+# proporciones supuestas. Three.js (r128) va embebido para no depender de un CDN.
+
+import json
+from pathlib import Path
+
+import numpy as np
+import numpy as np
+import streamlit as st
+import streamlit.components.v1 as components
+
+_AQUI = Path(__file__).parent
+
+COMPONENTES = {
+    "tanqueAlimentacion": {
+        "nombre": "Tanque de alimentación",
+        "desc": ("Contiene el lactosuero reconstituido: capacidad total de 120–140 L y "
+                 "volumen de operación de 80 L. El rechazo retorna aquí (operación en "
+                 "reciclo) y la proteína se concentra con el tiempo. Debajo tiene una "
+                 "báscula electrónica para registrar el peso."),
+        "fuente": "Manual (componentes 1 y 9) · If_11 (recirculación)",
+    },
+    "bombaAlimentacion": {
+        "nombre": "Bomba de alimentación principal",
+        "desc": ("Impulsa el fluido desde el tanque hacia el microfiltro y la membrana. "
+                 "Su velocidad define la velocidad tangencial dentro de las fibras, "
+                 "clave para controlar el ensuciamiento. El caudal se regula a ~6 L/min "
+                 "en el rotámetro de entrada."),
+        "fuente": "Manual (componente 3) · If_11",
+    },
+    "microfiltro": {
+        "nombre": "Cartucho de microfiltración (5 µm)",
+        "desc": ("Filtro físico a la entrada de la línea de la membrana. Retiene "
+                 "partículas e impurezas que taparían rápidamente los poros de la "
+                 "membrana (pretratamiento del lactosuero)."),
+        "fuente": "Manual (componente 4) · Tesis (cartuchos de 5 micras)",
+    },
+    "tableroControl": {
+        "nombre": "Tablero de control",
+        "desc": ("Panel eléctrico (220 VAC) con el switch de encendido general y "
+                 "selectores MAN–0–AUTO para las válvulas solenoides V1–V5, la bomba "
+                 "dosificadora y la bomba principal. Los pilotos naranjas indican qué "
+                 "está activo."),
+        "fuente": "Fotos del equipo · Tesis (componente 1)",
+    },
+    "tableroHidraulico": {
+        "nombre": "Tablero hidráulico (manómetros y rotámetros)",
+        "desc": ("Manómetros PI 1.01–1.05: presión de entrada, post-filtro, permeado, "
+                 "rechazo y lavado. Rotámetros de área variable para entrada, permeado "
+                 "y rechazo (los dos últimos fueron calibrados experimentalmente en la "
+                 "investigación)."),
+        "fuente": "P&ID (PI 1.01–1.05) · Fotos · Tesis (calibración)",
+    },
+    "membrana": {
+        "nombre": "Membrana de ultrafiltración MARTIN MTUF-PVC-4046",
+        "desc": ("Módulo Hollow Fiber de PVC · corte 100 kDa · área 4.8 m² · pH 2–13 · "
+                 "5–45 °C · presión máx. de alimento 0.4 MPa (4 bar) · presión de "
+                 "operación 0.1 MPa · flux de diseño 25–100 L/m²·h. La alimentación "
+                 "entra por el interior de las fibras; el permeado atraviesa sus "
+                 "paredes y el rechazo sigue de largo."),
+        "fuente": "Tesis (Tabla 7, RIELCO 2025; Fig. 4)",
+    },
+    "valvulas": {
+        "nombre": "Válvulas solenoides V1–V5",
+        "desc": ("Según el P&ID del fabricante: VAL1 entrada · VAL2 permeado · VAL3 "
+                 "rechazo · VAL4 enjuague · VAL5 aire. Ciclos del manual del "
+                 "laboratorio: ultrafiltración = 1+2 · lavado de línea de rechazo = "
+                 "1+3 · lavado de línea de permeado = 1+4."),
+        "fuente": "P&ID (tabla VAL) · Manual (ciclos)",
+    },
+    "valvulaRoja": {
+        "nombre": "Válvula reguladora roja (relación permeado/rechazo)",
+        "desc": ("Válvula tipo mariposa en la parte trasera, con recorrido de 9 "
+                 "vueltas. Fija la relación permeado/rechazo; la práctica se opera en "
+                 "la vuelta 2 (posición estándar). Fue caracterizada vuelta a vuelta "
+                 "en los ensayos preliminares."),
+        "fuente": "Manual (componente 10) · Tesis (caracterización)",
+    },
+    "bombaDosificadora": {
+        "nombre": "Bomba dosificadora",
+        "desc": ("Dosifica el producto químico de lavado (NaOH al 1 % p/v en la "
+                 "práctica) desde su tanque hacia la línea, durante la limpieza "
+                 "química de la membrana."),
+        "fuente": "Tesis (componente 8) · Manual (NaOH 1 %)",
+    },
+    "tanqueQuimico": {
+        "nombre": "Tanque de producto químico de lavado",
+        "desc": "Recipiente del agente de limpieza química que alimenta la bomba dosificadora.",
+        "fuente": "Tesis (componente 5)",
+    },
+    "tanqueLavado": {
+        "nombre": "Tanque de lavado",
+        "desc": ("Almacena el agua para los ciclos de lavado y retrolavado de la "
+                 "membrana. En el P&ID recibe parte del permeado para reutilizarlo en "
+                 "la limpieza."),
+        "fuente": "Tesis (componente 4) · P&ID",
+    },
+    "bombaRetrolavado": {
+        "nombre": "Bomba de retrolavado",
+        "desc": ("Impulsa agua en sentido contrario a través de la membrana para "
+                 "desprender la torta. La ficha del fabricante recomienda retrolavar "
+                 "cada 15–60 min durante 30–60 s."),
+        "fuente": "Tesis (componente 6 y Tabla 7)",
+    },
+    "inyeccionAire": {
+        "nombre": "Sistema de inyección de aire",
+        "desc": ("Unidad de mantenimiento conectada a aire comprimido (VAL5). Envía "
+                 "aire a contracorriente para ayudar a desprender la capa de "
+                 "ensuciamiento durante la limpieza."),
+        "fuente": "Tesis (componente 9) · If_11 · P&ID",
+    },
+    "tanquePermeado": {
+        "nombre": "Tanque de recolección de permeado",
+        "desc": ("Recibe el permeado (agua, lactosa y sales). Sobre una báscula "
+                 "electrónica: su peso cada 8 min, con la densidad y el área de "
+                 "membrana, da el flux J."),
+        "fuente": "Manual (componentes 8 y 9)",
+    },
+    "drenaje": {
+        "nombre": "Drenaje",
+        "desc": "Salida al desagüe usada en los ciclos de lavado y purga de las líneas.",
+        "fuente": "P&ID · Manual (purgas)",
+    },
+    "tomaAgua": {
+        "nombre": "Toma de agua de red",
+        "desc": ("Para los lavados, la manguera de entrada se desconecta del tanque de "
+                 "alimentación y se conecta al agua de la planta."),
+        "fuente": "Manual (procedimiento de lavado)",
+    },
+}
+
+CICLOS = {
+    "off": {"etiqueta": "⏹ Detenido", "valvulas": [], "detalle": "Equipo apagado. Haz clic en los componentes para conocerlos."},
+    "uf": {"etiqueta": "🥛 Ultrafiltración (V1+V2)", "valvulas": [1, 2],
+           "detalle": "Lactosuero → bomba → microfiltro → membrana. El rechazo (rojo) retorna al tanque y el permeado (azul) va al tanque de recolección."},
+    "lavR": {"etiqueta": "🚿 Lavado línea de rechazo (V1+V3)", "valvulas": [1, 3],
+             "detalle": "Agua de red por la línea de rechazo hacia el drenaje, 5–10 min hasta que salga clara (~30–33 µS/cm)."},
+    "lavP": {"etiqueta": "🚿 Lavado línea de permeado (V1+V4)", "valvulas": [1, 4],
+             "detalle": "Agua de red por la línea de permeado hacia el drenaje, para limpiar el interior de las fibras."},
+    "retro": {"etiqueta": "💨 Retrolavado + aire (V5)", "valvulas": [5],
+              "detalle": "Agua del tanque de lavado en contraflujo más aire comprimido; desprende la torta (15–60 min de frecuencia, 30–60 s)."},
+}
+
+
+@st.cache_resource(show_spinner=False)
+def _libs_three():
+    three = (_AQUI / "static3d" / "three.min.js").read_text(encoding="utf-8")
+    orbit = (_AQUI / "static3d" / "OrbitControls.js").read_text(encoding="utf-8")
+    return three, orbit
+
+
+@st.cache_data(show_spinner=False)
+def _html_escena(j_ratio):
+    three, orbit = _libs_three()
+    plantilla = (_AQUI / "static3d" / "escena.js").read_text(encoding="utf-8")
+    escena = (plantilla
+              .replace("__COMPONENTES__", json.dumps(COMPONENTES, ensure_ascii=False))
+              .replace("__CICLOS__", json.dumps(CICLOS, ensure_ascii=False))
+              .replace("__JRATIO__", json.dumps(j_ratio)))
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+  html,body {{ margin:0; padding:0; overflow:hidden; font-family:"Source Sans Pro",Helvetica,Arial,sans-serif; }}
+  #c {{ width:100%; height:100%; display:block; cursor:grab; }}
+  .panelbtns {{ position:absolute; top:10px; left:10px; display:flex; flex-direction:column; gap:6px; z-index:5; }}
+  .panelbtns button {{ border:1px solid #cbd5e0; background:#fff; color:#213547; border-radius:8px;
+      padding:7px 12px; font-size:13.5px; cursor:pointer; text-align:left; box-shadow:0 1px 4px rgba(0,0,0,.12); }}
+  .panelbtns button.act {{ background:#082e52; color:#fff; border-color:#082e52; }}
+  #detalleCiclo {{ position:absolute; left:10px; bottom:10px; max-width:46%; background:rgba(255,255,255,.93);
+      border-radius:10px; padding:9px 13px; font-size:13.5px; color:#213547; box-shadow:0 1px 6px rgba(0,0,0,.15); }}
+  #tarjeta {{ position:absolute; top:10px; right:10px; width:310px; background:#fff; border-radius:12px;
+      box-shadow:0 4px 16px rgba(0,0,0,.22); padding:14px 16px; display:none; z-index:6; }}
+  #tarjeta h3 {{ margin:0 0 6px; font-size:16.5px; color:#082e52; }}
+  #tarjeta p {{ margin:0 0 8px; font-size:13.5px; line-height:1.45; color:#213547; }}
+  #tarjeta .fuente {{ font-size:11.5px; color:#586c7c; border-top:1px solid #e2e8f0; padding-top:6px; }}
+  #tarjeta .cerrar {{ position:absolute; top:6px; right:10px; border:none; background:none; font-size:17px;
+      cursor:pointer; color:#586c7c; }}
+  #leyenda {{ position:absolute; right:10px; bottom:10px; background:rgba(255,255,255,.93); border-radius:10px;
+      padding:8px 12px; font-size:12px; color:#213547; box-shadow:0 1px 6px rgba(0,0,0,.15); }}
+  #leyenda span {{ display:inline-block; width:18px; height:4px; border-radius:2px; margin:0 5px 2px 10px; }}
+  #hint {{ position:absolute; top:10px; left:50%; transform:translateX(-50%); background:rgba(8,46,82,.85);
+      color:#fff; border-radius:16px; padding:5px 14px; font-size:12.5px; z-index:4; }}
+  #foul {{ position:absolute; left:10px; bottom:74px; background:rgba(255,255,255,.93); border-radius:10px;
+      padding:7px 12px; font-size:12.5px; color:#213547; box-shadow:0 1px 6px rgba(0,0,0,.15); display:none; }}
+</style></head><body>
+<canvas id="c"></canvas>
+<div class="panelbtns" id="botones"></div>
+<div id="foul">Minuto de la práctica: <b id="minv">0</b><br>
+  <input type="range" id="min" min="0" max="40" value="0" step="1" style="width:170px">
+  <div style="font-size:11px;color:#586c7c">El permeado se frena según el modelo de Hermia<br>y la membrana se tiñe por el ensuciamiento</div></div>
+<div id="detalleCiclo"></div>
+<div id="hint">Arrastra para rotar · rueda para acercar · clic en un componente</div>
+<div id="tarjeta"><button class="cerrar" onclick="document.getElementById('tarjeta').style.display='none'">✕</button>
+  <h3 id="tN"></h3><p id="tD"></p><div class="fuente" id="tF"></div></div>
+<div id="leyenda"><b>Líneas (colores del P&ID)</b><br>
+  Entrada<span style="background:#1fa23a"></span> Permeado<span style="background:#1565d8"></span><br>
+  Rechazo<span style="background:#d8342c"></span> Lavado<span style="background:#18b8c4"></span>
+  Aire<span style="background:#f08c1a"></span></div>
+<script>{three}</script>
+<script>{orbit}</script>
+<script>{escena}</script>
+</body></html>"""
+
+
+def pagina_equipo3d(PARAMS, modelo_J_torta):
+    st.write("# Equipo 3D")
+    st.markdown(
+        "Recorre el equipo real de ultrafiltración **MARTIN MTUF-PVC-4046** (AI-UF-1-4): "
+        "rota, acércate, haz **clic en cada componente** para ver qué es y qué hace, y "
+        "activa un **ciclo de operación** para ver el recorrido del fluido con los "
+        "colores del P&ID del fabricante."
+    )
+    # Velocidad relativa del permeado según Hermia (conecta el 3D con el modelo del gemelo)
+    t = np.arange(0, 41, 1.0)
+    j_ratio = (modelo_J_torta(t) / float(modelo_J_torta(0.0))).round(4).tolist()
+    components.html(_html_escena(tuple(j_ratio)), height=660, scrolling=False)
+    st.caption(
+        "Modelo esquemático: los componentes, las válvulas, los ciclos y la ficha técnica "
+        "están documentados (manual, tesis y P&ID de RIELCO); las dimensiones, proporciones "
+        "y el recorrido exacto de las tuberías son supuestos de representación."
+    )
+    with st.expander("📘 Fuentes y correspondencia de válvulas"):
+        st.markdown(
+            "- **Manual del laboratorio:** componentes 1–10, ciclos por válvulas "
+            "(UF = 1+2, lavado rechazo = 1+3, lavado permeado = 1+4), válvula roja en vuelta 2.\n"
+            "- **Tesis (Tabla 7 y sección 2.3):** ficha de la membrana (PVC Hollow Fiber, "
+            "100 kDa, 4.8 m², presión máx. 0.4 MPa) y los 9 subsistemas del equipo.\n"
+            "- **P&ID del fabricante (RIELCO, Anexo M):** VAL1 entrada · VAL2 permeado · "
+            "VAL3 rechazo · VAL4 enjuague · VAL5 aire; manómetros PI 1.01–1.05. El P&ID "
+            "está dibujado para producción de agua ultrapura, por lo que el destino de las "
+            "salidas difiere del uso con lactosuero (aquí el rechazo se recircula al tanque).\n"
+            "- **Nota:** la guía If_11 numera las válvulas manuales del tablero del 1 al 9 "
+            "(la 9 es la reguladora roja); el panel eléctrico rotula V1–V5. En esta escena "
+            "se usan los ciclos del manual con la numeración V1–V5 del panel."
+        )

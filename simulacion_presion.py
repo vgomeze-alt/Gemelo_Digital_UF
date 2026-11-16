@@ -46,8 +46,8 @@ MU_LD_REF = 0.00117               # Pa·s, lactosuero (Hoja "Modelo")
 MU_AGUA_REF = 0.001               # Pa·s, agua (Hoja "Modelo")
 T_REF = 20.0                      # °C, supuesto para las viscosidades de referencia
 V_TANQUE = 80.0                   # L
-P_MAX_PROVISIONAL_BAR = 2.0       # bar — PROVISIONAL: fichas técnicas de UF para agua
-                                  # (rango típico 1–3 bar). Cambiar con la ficha real.
+P_MAX_FICHA_BAR = 4.0             # bar — ficha técnica del fabricante (Tabla 7 de la
+                                  # tesis, RIELCO): presión máxima de alimento 0.4 MPa.
 
 # Incertidumbre a partir de las 3 réplicas de R:28/72
 HERMIA_MEDIA = np.array([19.0545, 1.33995e-4])            # J0 [L/m²h], Kc
@@ -180,11 +180,10 @@ def pagina_presion(PARAMS):
                            help=f"Referencia de los datos experimentales: {DP_REF_PSI:g} psi.")
         st.caption(f"= {dP_psi * PSI_A_PA / BAR_A_PA:.2f} bar")
         p_max_bar = st.number_input(
-            "Presión máxima de la membrana (bar)", 0.5, 10.0, P_MAX_PROVISIONAL_BAR, 0.1,
-            help="Valor PROVISIONAL tomado de fichas técnicas de membranas de UF para agua "
-                 "(rango típico 1–3 bar). Cámbialo cuando tengas la ficha técnica del equipo.")
-        st.caption(f"= {p_max_bar * BAR_A_PA / PSI_A_PA:.0f} psi · ⚠️ valor provisional, pendiente "
-                   f"de confirmar con la ficha técnica")
+            "Presión máxima de la membrana (bar)", 0.5, 10.0, P_MAX_FICHA_BAR, 0.1,
+            help="Ficha técnica del fabricante (Tabla 7 de la tesis): presión máxima de "
+                 "alimento de la membrana MARTIN MTUF-PVC-4046 = 0.4 MPa (4 bar).")
+        st.caption(f"= {p_max_bar * BAR_A_PA / PSI_A_PA:.0f} psi · ficha técnica del fabricante (0.4 MPa)")
         estado = st.selectbox("Estado de la membrana", list(ESTADOS_MEMBRANA),
                               help="Cambia la resistencia propia de la membrana, R_M.")
         f_mem = ESTADOS_MEMBRANA[estado]
@@ -323,7 +322,7 @@ def pagina_presion(PARAMS):
         ax.plot(x_bar, p50g, color="#c00000", lw=2, label=f"Lactosuero a {t_final} min")
         ax.plot(x_bar, r["J_agua_grid"], color="#2e86ab", lw=1.5, ls="-.", label="Agua pura (sin torta)")
         ax.axvspan(p_max / BAR_A_PA, x_bar[-1], color="red", alpha=0.08)
-        ax.axvline(p_max / BAR_A_PA, color="red", lw=1.5, label=f"Presión máx. ({p_max_bar:.1f} bar, provisional)")
+        ax.axvline(p_max / BAR_A_PA, color="red", lw=1.5, label=f"Presión máx. ({p_max_bar:.1f} bar, ficha técnica)")
         ax.axvline(DP_REF / BAR_A_PA, color="k", ls="--", lw=1, label=f"Medido ({DP_REF_PSI:g} psi)")
         ax.axvline(dP / BAR_A_PA, color="#1f4e78", ls=":", lw=2, label="Tu presión")
         ax.set_ylim(0, max(np.nanmax(p95g), 1) * 1.4)
@@ -395,9 +394,8 @@ presiones.
 La banda sombreada contiene el 90 % de los resultados. A 11 psi contiene los 15 puntos
 experimentales de las 3 réplicas.
 
-**Presión máxima**: {P_MAX_PROVISIONAL_BAR:.1f} bar por defecto. Es un valor **provisional** tomado de
-fichas técnicas de membranas de ultrafiltración para agua (rango típico de 1 a 3 bar), porque no se
-tiene la ficha del equipo.
+**Presión máxima**: {P_MAX_FICHA_BAR:.1f} bar por defecto, según la ficha técnica del fabricante
+(Tabla 7 de la tesis: presión máxima de alimento de 0.4 MPa para la membrana MARTIN MTUF-PVC-4046).
 
 **Limitaciones**: no se modela que una torta más gruesa (por más flux) crezca más rápido, ni la
 pérdida de rechazo por encima de la presión máxima; tampoco el efecto de la velocidad de flujo
