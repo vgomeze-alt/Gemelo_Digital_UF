@@ -32,16 +32,18 @@ COMPONENTES = {
         "desc": ("Contiene el lactosuero reconstituido: capacidad total de 120–140 L y "
                  "volumen de operación de 80 L. El rechazo retorna aquí (operación en "
                  "reciclo) y la proteína se concentra con el tiempo. Debajo tiene una "
-                 "báscula electrónica para registrar el peso."),
-        "fuente": "Manual (componentes 1 y 9) · If_11 (recirculación)",
+                 "báscula electrónica para registrar el peso. Para la limpieza química "
+                 "se desocupa, se llena con agua y se agrega el NaOH manualmente: no "
+                 "hay un tanque de lavado dedicado."),
+        "fuente": "Manual (componentes 1 y 9) · If_11 · aclaración del laboratorio",
     },
     "bombaAlimentacion": {
-        "nombre": "Bomba de alimentación principal",
-        "desc": ("Impulsa el fluido desde el tanque hacia el microfiltro y la membrana. "
-                 "Su velocidad define la velocidad tangencial dentro de las fibras, "
-                 "clave para controlar el ensuciamiento. El caudal se regula a ~6 L/min "
-                 "en el rotámetro de entrada."),
-        "fuente": "Manual (componente 3) · If_11",
+        "nombre": "Bomba de alimentación (externa al equipo)",
+        "desc": ("Bomba aparte del equipo, en el piso junto al tanque azul: impulsa el "
+                 "lactosuero hacia el microfiltro y la membrana. Su velocidad define la "
+                 "velocidad tangencial dentro de las fibras, clave para controlar el "
+                 "ensuciamiento. El caudal se regula a ~6 L/min en el rotámetro de entrada."),
+        "fuente": "Manual (componente 3) · If_11 · aclaración del laboratorio",
     },
     "microfiltro": {
         "nombre": "Cartucho de microfiltración (5 µm)",
@@ -52,28 +54,31 @@ COMPONENTES = {
     },
     "tableroControl": {
         "nombre": "Tablero de control",
-        "desc": ("Panel eléctrico (220 VAC) con el switch de encendido general y "
-                 "selectores MAN–0–AUTO para las válvulas solenoides V1–V5, la bomba "
-                 "dosificadora y la bomba principal. Los pilotos naranjas indican qué "
+        "desc": ("Panel eléctrico (220 VAC) con piloto verde de energía y selectores "
+                 "MAN–0–AUTO: fila superior VÁLVULA 1–3; fila inferior VÁLVULA 4, "
+                 "VÁLVULA 5, DOSIFICADORA y BOMBA. Los pilotos naranjas indican qué "
                  "está activo."),
         "fuente": "Fotos del equipo · Tesis (componente 1)",
     },
     "tableroHidraulico": {
         "nombre": "Tablero hidráulico (manómetros y rotámetros)",
-        "desc": ("Manómetros PI 1.01–1.05: presión de entrada, post-filtro, permeado, "
-                 "rechazo y lavado. Rotámetros de área variable para entrada, permeado "
-                 "y rechazo (los dos últimos fueron calibrados experimentalmente en la "
-                 "investigación)."),
+        "desc": ("Manómetros PI 1.01–1.05: PRESIÓN ENTRADA, POST-FILTRO, PERMEADO, "
+                 "RECHAZO y LAVADO. Rotámetros EWP de área variable (0.5–5 GPM / "
+                 "2–18 LPM, se lee el tope del flotador): FLUJO ENTRADA, FLUJO PERMEADO "
+                 "y FLUJO RECHAZO; los de permeado y rechazo fueron calibrados en la "
+                 "investigación. Los 6 L/min de operación quedan hacia media escala."),
         "fuente": "P&ID (PI 1.01–1.05) · Fotos · Tesis (calibración)",
     },
     "membrana": {
         "nombre": "Membrana de ultrafiltración MARTIN MTUF-PVC-4046",
-        "desc": ("Módulo Hollow Fiber de PVC · corte 100 kDa · área 4.8 m² · pH 2–13 · "
-                 "5–45 °C · presión máx. de alimento 0.4 MPa (4 bar) · presión de "
-                 "operación 0.1 MPa · flux de diseño 25–100 L/m²·h. La alimentación "
-                 "entra por el interior de las fibras; el permeado atraviesa sus "
-                 "paredes y el rechazo sigue de largo."),
-        "fuente": "Tesis (Tabla 7, RIELCO 2025; Fig. 4)",
+        "desc": ("Módulo Hollow Fiber de PVC autolimpiante · corte 100 kDa · área "
+                 "4.8 m² · pH 2–13 · 5–45 °C · presión máx. de alimento 0.4 MPa (4 bar) "
+                 "· flux de diseño 25–100 L/m²·h. Configuración inside-out: la "
+                 "alimentación entra por el interior de cada fibra, el permeado "
+                 "atraviesa la pared porosa y el rechazo sigue de largo. Formato 4046: "
+                 "≈ Ø17 cm × 1.15 m según fichas de módulos UF-4046. Usa el botón "
+                 "🔬 para ver el interior."),
+        "fuente": "Tesis (Tabla 7; Fig. 4) · etiqueta del equipo · ficha UF-4046 (web)",
     },
     "valvulas": {
         "nombre": "Válvulas solenoides V1–V5",
@@ -93,29 +98,19 @@ COMPONENTES = {
     },
     "bombaDosificadora": {
         "nombre": "Bomba dosificadora",
-        "desc": ("Dosifica el producto químico de lavado (NaOH al 1 % p/v en la "
-                 "práctica) desde su tanque hacia la línea, durante la limpieza "
-                 "química de la membrana."),
-        "fuente": "Tesis (componente 8) · Manual (NaOH 1 %)",
+        "desc": ("Prevista para dosificar el químico de limpieza (botón DOSIFICADORA "
+                 "del tablero). En la operación actual del laboratorio no se usa un "
+                 "tanque químico dedicado: para la limpieza se desocupan los tanques "
+                 "azules, se llenan con agua y el NaOH al 1 % p/v se agrega manualmente."),
+        "fuente": "Tesis (componente 8) · Manual (NaOH 1 %) · aclaración del laboratorio",
     },
-    "tanqueQuimico": {
-        "nombre": "Tanque de producto químico de lavado",
-        "desc": "Recipiente del agente de limpieza química que alimenta la bomba dosificadora.",
-        "fuente": "Tesis (componente 5)",
-    },
-    "tanqueLavado": {
-        "nombre": "Tanque de lavado",
-        "desc": ("Almacena el agua para los ciclos de lavado y retrolavado de la "
-                 "membrana. En el P&ID recibe parte del permeado para reutilizarlo en "
-                 "la limpieza."),
-        "fuente": "Tesis (componente 4) · P&ID",
-    },
-    "bombaRetrolavado": {
-        "nombre": "Bomba de retrolavado",
-        "desc": ("Impulsa agua en sentido contrario a través de la membrana para "
-                 "desprender la torta. La ficha del fabricante recomienda retrolavar "
-                 "cada 15–60 min durante 30–60 s."),
-        "fuente": "Tesis (componente 6 y Tabla 7)",
+    "bombaLavado": {
+        "nombre": "Bomba de lavado (del equipo)",
+        "desc": ("Bomba propia del equipo, montada en la base (cabezal inoxidable y "
+                 "motor negro, rotulada BOMBA LAVADO; botón BOMBA del tablero). Impulsa "
+                 "el agua de los ciclos de lavado y retrolavado; la ficha recomienda "
+                 "retrolavar cada 15–60 min durante 30–60 s."),
+        "fuente": "Fotos del equipo · Tesis (componente 6 y Tabla 7)",
     },
     "inyeccionAire": {
         "nombre": "Sistema de inyección de aire",
@@ -153,7 +148,7 @@ CICLOS = {
     "lavP": {"etiqueta": "🚿 Lavado línea de permeado (V1+V4)", "valvulas": [1, 4],
              "detalle": "Agua de red por la línea de permeado hacia el drenaje, para limpiar el interior de las fibras."},
     "retro": {"etiqueta": "💨 Retrolavado + aire (V5)", "valvulas": [5],
-              "detalle": "Agua del tanque de lavado en contraflujo más aire comprimido; desprende la torta (15–60 min de frecuencia, 30–60 s)."},
+              "detalle": "Agua del tanque azul (con NaOH agregado manualmente si es limpieza química), impulsada por la bomba de lavado en contraflujo, más aire comprimido: desprende la torta (cada 15–60 min, 30–60 s)."},
 }
 
 
@@ -203,6 +198,12 @@ def _html_escena(j_ratio):
   <input type="range" id="min" min="0" max="40" value="0" step="1" style="width:170px">
   <div style="font-size:11px;color:#586c7c">El permeado se frena según el modelo de Hermia<br>y la membrana se tiñe por el ensuciamiento</div></div>
 <div id="detalleCiclo"></div>
+<div id="interiorInfo" style="display:none;position:absolute;right:10px;bottom:95px;
+  max-width:330px;background:rgba(8,46,82,.92);color:#fff;border-radius:10px;padding:9px 13px;font-size:12.5px;z-index:5">
+  <b>Interior del módulo (inside-out):</b> el lactosuero entra por <b>dentro de cada fibra hueca</b>;
+  el agua, la lactosa y las sales atraviesan la pared porosa (corte 100 kDa) hacia la carcasa
+  —<b>permeado</b>, azul— y la proteína, demasiado grande para los poros, sigue de largo
+  —<b>rechazo</b>—. En retrolavado el flujo se invierte y sube <b>aire</b> a contracorriente.</div>
 <div id="hint">Arrastra para rotar · rueda para acercar · clic en un componente</div>
 <div id="tarjeta"><button class="cerrar" onclick="document.getElementById('tarjeta').style.display='none'">✕</button>
   <h3 id="tN"></h3><p id="tD"></p><div class="fuente" id="tF"></div></div>
@@ -245,5 +246,13 @@ def pagina_equipo3d(PARAMS, modelo_J_torta):
             "salidas difiere del uso con lactosuero (aquí el rechazo se recircula al tanque).\n"
             "- **Nota:** la guía If_11 numera las válvulas manuales del tablero del 1 al 9 "
             "(la 9 es la reguladora roja); el panel eléctrico rotula V1–V5. En esta escena "
-            "se usan los ciclos del manual con la numeración V1–V5 del panel."
+            "se usan los ciclos del manual con la numeración V1–V5 del panel.\n"
+            "- **Operación real del laboratorio** (aclaración del equipo de trabajo): no hay "
+            "tanque de lavado ni tanque de químico dedicados; la limpieza se hace desocupando "
+            "los tanques azules, llenándolos con agua y agregando el NaOH manualmente. La "
+            "bomba del equipo (BOMBA LAVADO, en la base) es distinta de la bomba de "
+            "alimentación, que es externa.\n"
+            "- **Interior de la membrana:** módulo *inside-out* (ficha de módulos UF-4046 y "
+            "Fig. 4 de la tesis): alimentación por el lumen de las fibras, permeado a través "
+            "de la pared, concentrado de largo; el botón 🔬 lo muestra animado."
         )

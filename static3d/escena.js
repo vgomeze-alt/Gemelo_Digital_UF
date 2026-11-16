@@ -100,18 +100,20 @@ caja(skid, 1.36, 0.045, 0.045, M.aceroOsc, 0, 1.76, -0.3);         // travesaño
 // ------------------------------------------------------------- tablero de control
 const tcontrol = grupo("tableroControl");
 caja(tcontrol, 0.62, 0.58, 0.12, M.beige, -0.05, 1.32, -0.18);
-cil(tcontrol, 0.02, 0.025, M.verde, -0.05, 1.52, -0.115, "x");      // switch general
+cil(tcontrol, 0.016, 0.02, M.verde, -0.05, 1.555, -0.115, "x");     // piloto verde (energía)
 const pilotos = [];
-for (let i = 0; i < 5; i++) {                                       // pilotos V1–V5
-  const p = cil(tcontrol, 0.016, 0.02, M.naranja.clone(), -0.25 + i * 0.1, 1.42, -0.115, "x");
-  pilotos.push(p);
-}
-for (let i = 0; i < 5; i++)                                         // perillas MAN-0-AUTO
-  cil(tcontrol, 0.014, 0.022, M.negro, -0.25 + i * 0.1, 1.33, -0.115, "x");
-for (let i = 0; i < 2; i++) {                                       // dosificadora y bomba
-  cil(tcontrol, 0.016, 0.02, M.naranja.clone(), -0.1 + i * 0.1, 1.22, -0.115, "x");
-  cil(tcontrol, 0.014, 0.022, M.negro, -0.1 + i * 0.1, 1.13, -0.115, "x");
-}
+[-0.2, -0.05, 0.1].forEach(x => {                                   // fila 1: V1–V3
+  pilotos.push(cil(tcontrol, 0.016, 0.02, M.naranja.clone(), x, 1.47, -0.115, "x"));
+  cil(tcontrol, 0.014, 0.022, M.negro, x, 1.38, -0.115, "x");
+});
+const filaInf = [-0.245, -0.115, 0.015, 0.145];                     // fila 2: V4,V5,DOSIF,BOMBA
+const extras = [];
+filaInf.forEach(x => {
+  extras.push(cil(tcontrol, 0.016, 0.02, M.naranja.clone(), x, 1.24, -0.115, "x"));
+  cil(tcontrol, 0.014, 0.022, M.negro, x, 1.15, -0.115, "x");
+});
+pilotos.push(extras[0], extras[1]);                                 // V4 y V5
+const pilotoDosif = extras[2], pilotoBomba = extras[3];
 registrar(tcontrol);
 
 // ------------------------------------------------------------- tablero hidráulico
@@ -149,15 +151,16 @@ registrar(memb);
 
 // ------------------------------------------------------------- bombas
 const bAli = grupo("bombaAlimentacion");
-caja(bAli, 0.22, 0.16, 0.16, M.azulBomba, -0.25, 0.45, 0.12);
-cil(bAli, 0.07, 0.1, M.azulBomba, -0.09, 0.43, 0.12, "z");
-caja(bAli, 0.26, 0.03, 0.2, M.aceroOsc, -0.22, 0.375, 0.12);
+caja(bAli, 0.16, 0.12, 0.12, M.azulBomba, -0.58, 0.1, 0.62);
+cil(bAli, 0.05, 0.08, M.azulBomba, -0.46, 0.09, 0.62, "z");
+caja(bAli, 0.2, 0.025, 0.15, M.aceroOsc, -0.56, 0.03, 0.62);
 registrar(bAli);
 
-const bRetro = grupo("bombaRetrolavado");
-caja(bRetro, 0.16, 0.12, 0.12, M.acero, 0.28, 0.43, -0.08);
-cil(bRetro, 0.05, 0.08, M.azulBomba, 0.39, 0.42, -0.08, "z");
-registrar(bRetro);
+const bLav = grupo("bombaLavado");                                  // del equipo (foto: BOMBA LAVADO)
+cil(bLav, 0.065, 0.2, M.negro, 0.14, 0.45, 0.1, "z");               // motor negro
+cil(bLav, 0.075, 0.07, M.acero, 0.29, 0.44, 0.1, "z");              // cabezal inoxidable
+caja(bLav, 0.3, 0.03, 0.16, M.aceroOsc, 0.18, 0.375, 0.1);
+registrar(bLav);
 
 const bDos = grupo("bombaDosificadora");
 caja(bDos, 0.1, 0.13, 0.09, M.verde, 0.62, 1.45, -0.12);
@@ -165,17 +168,6 @@ cil(bDos, 0.025, 0.05, M.blanco, 0.62, 1.54, -0.12);
 registrar(bDos);
 
 // ------------------------------------------------------------- tanques
-const tQuim = grupo("tanqueQuimico");
-cil(tQuim, 0.085, 0.24, M.blanco, 0.5, 0.48, 0.22);
-cil(tQuim, 0.045, 0.04, M.rojo, 0.5, 0.62, 0.22);
-registrar(tQuim);
-
-const tLav = grupo("tanqueLavado");
-cil(tLav, 0.21, 0.72, M.blancoMate, -1.12, 0.72, -0.05);
-cil(tLav, 0.215, 0.045, M.rojo, -1.12, 1.1, -0.05);
-cil(tLav, 0.16, 0.06, M.acero, -1.12, 0.33, -0.05);
-registrar(tLav);
-
 function barril(cid, x, z, r, h) {
   const g = grupo(cid);
   caja(g, r * 2.6, 0.06, r * 2.6, M.acero, x, 0.07, z);             // báscula
@@ -195,8 +187,9 @@ cil(vRoja, 0.012, 0.1, M.aceroOsc, 0.25, 0.95, -0.35, "x");
 registrar(vRoja);
 
 const aire = grupo("inyeccionAire");
-cil(aire, 0.03, 0.16, M.acero, 0.5, 0.78, -0.22);
-cil(aire, 0.024, 0.012, M.blancoMate, 0.5, 0.88, -0.205, "x");
+cil(aire, 0.028, 0.15, M.negro, 0.72, 0.98, -0.13);                 // filtro-regulador
+cil(aire, 0.022, 0.012, M.blancoMate, 0.72, 1.07, -0.115, "x");     // manómetro pequeño
+caja(aire, 0.1, 0.02, 0.03, M.aceroOsc, 0.82, 1.05, -0.1);
 registrar(aire);
 
 const dren = grupo("drenaje");
@@ -221,7 +214,7 @@ function tubo(id, color, puntos, radio) {
 const C = { ent: 0x1fa23a, per: 0x1565d8, rec: 0xd8342c, lav: 0x18b8c4, aire: 0xf08c1a };
 
 tubo("entradaLactosuero", C.ent, [
-  [-0.95, 0.9, 0.8], [-0.78, 0.6, 0.5], [-0.42, 0.45, 0.2], [-0.2, 0.45, 0.14],
+  [-0.95, 0.35, 0.8], [-0.75, 0.12, 0.7], [-0.52, 0.1, 0.62], [-0.44, 0.3, 0.4],
   [-0.52, 0.6, 0.06], [-0.52, 1.2, 0.02], [-0.3, 1.12, 0.1], [0.3, 0.6, 0.12],
   [0.75, 0.5, 0.08], [0.9, 0.52, 0.03]]);
 tubo("entradaAgua", C.ent, [
@@ -238,10 +231,10 @@ tubo("permeadoTanque", C.per, [
 tubo("permeadoDrenaje", C.per, [
   [0.95, 1.75, 0], [0.8, 1.6, 0.35], [0.55, 0.7, 0.95], [0.42, 0.12, 1.2]]);
 tubo("lavado", C.lav, [
-  [-1.12, 1.12, -0.05], [-0.7, 0.7, -0.18], [0.1, 0.46, -0.12], [0.33, 0.44, -0.08],
-  [0.7, 0.44, -0.04], [0.9, 0.5, 0.0]]);
+  [-0.95, 0.35, 0.72], [-0.5, 0.2, 0.35], [-0.1, 0.3, 0.02], [0.14, 0.42, 0.06],
+  [0.32, 0.44, 0.08], [0.7, 0.44, 0.02], [0.9, 0.5, 0.0]]);
 tubo("aireLinea", C.aire, [
-  [0.5, 0.86, -0.2], [0.72, 0.62, -0.14], [0.88, 0.52, -0.04]], 0.012);
+  [0.72, 1.05, -0.13], [0.8, 0.8, -0.1], [0.88, 0.58, -0.04]], 0.01);
 
 // partículas
 function crearParticulas(t) {
@@ -259,6 +252,71 @@ function crearParticulas(t) {
 }
 Object.values(tubos).forEach(crearParticulas);
 
+// --------------------------------------------- interior de la membrana
+// Módulo inside-out (fichas UF-4046; tesis Fig. 4): la alimentación entra por
+// el interior de cada fibra, el permeado atraviesa la pared hacia la carcasa
+// y el concentrado sigue de largo. En retrolavado el sentido se invierte y
+// entra aire a contracorriente.
+const FIBRAS = [[0, 0], [0.038, 0], [-0.038, 0], [0.019, 0.033], [-0.019, 0.033],
+                [0.019, -0.033], [-0.019, -0.033]];
+const interiorG = new THREE.Group();
+interiorG.visible = false;
+scene.add(interiorG);
+FIBRAS.forEach(f => {
+  const fib = new THREE.Mesh(new THREE.CylinderGeometry(0.0115, 0.0115, 1.02, 10),
+    new THREE.MeshPhongMaterial({ color: 0xcfc49a, transparent: true, opacity: 0.45, depthWrite: false }));
+  fib.position.set(0.95 + f[0], 1.08, f[1]);
+  fib.userData.cid = "membrana";
+  clicables.push(fib);
+  interiorG.add(fib);
+});
+const pAlimFib = [], pPermRad = [], pBurbujas = [];
+for (let i = 0; i < 21; i++) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0x1fa23a }));
+  m.visible = false; m.userData = { f: i % 7, fase: Math.random() };
+  interiorG.add(m); pAlimFib.push(m);
+}
+for (let i = 0; i < 20; i++) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.008, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0x4d9fe8 }));
+  m.visible = false;
+  m.userData = { f: i % 7, y: 0.6 + Math.random() * 0.9, prog: Math.random(), ang: Math.random() * 6.28 };
+  interiorG.add(m); pPermRad.push(m);
+}
+for (let i = 0; i < 14; i++) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.01, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xf0a01a }));
+  m.visible = false;
+  m.userData = { fase: Math.random(), r: 0.025 + Math.random() * 0.045, ang: Math.random() * 6.28 };
+  interiorG.add(m); pBurbujas.push(m);
+}
+let interiorOn = false;
+let vistaPrev = null;
+function verInterior(on) {
+  interiorOn = on;
+  interiorG.visible = on;
+  matMembrana.transparent = on;
+  matMembrana.opacity = on ? 0.22 : 1.0;
+  matMembrana.depthWrite = !on;
+  matMembrana.needsUpdate = true;
+  document.getElementById("interiorInfo").style.display = on ? "block" : "none";
+  document.getElementById("btnInterior").classList.toggle("act", on);
+  if (on) {
+    vistaPrev = { pos: camera.position.clone(), tgt: controls.target.clone() };
+    camera.position.set(2.15, 1.25, 1.3);
+    controls.target.set(0.95, 1.1, 0);
+  } else if (vistaPrev) {
+    camera.position.copy(vistaPrev.pos);
+    controls.target.copy(vistaPrev.tgt);
+  }
+  // dentro del interior, atenuar las tuberías externas para que no tapen
+  Object.values(tubos).forEach(t => {
+    t.mat.opacity = on ? 0.1 : (t.activo ? 0.95 : 0.13);
+    t.particulas.forEach(q => (q.visible = !on && t.activo));
+  });
+}
+
 // ------------------------------------------------------------- ciclos
 const RUTAS = {
   off: [],
@@ -275,14 +333,17 @@ function aplicarCiclo(c) {
   const activos = RUTAS[c];
   Object.entries(tubos).forEach(([id, t]) => {
     t.activo = activos.includes(id);
-    t.mat.opacity = t.activo ? 0.95 : 0.13;
-    t.particulas.forEach(p => (p.visible = t.activo));
+    t.mat.opacity = interiorOn ? 0.1 : (t.activo ? 0.95 : 0.13);
+    t.particulas.forEach(p => (p.visible = t.activo && !interiorOn));
   });
   const abiertas = CICLOS[c].valvulas;
   pilotos.forEach((p, i) => {
     p.material.emissive.setHex(abiertas.includes(i + 1) ? 0xff9500 : 0x3a2400);
     p.material.color.setHex(abiertas.includes(i + 1) ? 0xffc04d : 0xf0a01a);
   });
+  const andando = c !== "off";
+  pilotoBomba.material.emissive.setHex(andando ? 0xff9500 : 0x3a2400);
+  pilotoBomba.material.color.setHex(andando ? 0xffc04d : 0xf0a01a);
   document.getElementById("detalleCiclo").innerHTML =
     "<b>" + CICLOS[c].etiqueta + "</b><br>" + CICLOS[c].detalle;
   document.getElementById("foul").style.display = c === "uf" ? "block" : "none";
@@ -306,6 +367,11 @@ Object.keys(CICLOS).forEach(c => {
   b.onclick = () => aplicarCiclo(c);
   cont.appendChild(b);
 });
+const bi = document.createElement("button");
+bi.id = "btnInterior";
+bi.textContent = "🔬 Interior de la membrana";
+bi.onclick = () => verInterior(!interiorOn);
+cont.appendChild(bi);
 const slider = document.getElementById("min");
 slider.oninput = () => {
   minuto = +slider.value;
@@ -366,6 +432,40 @@ function animar() {
   requestAnimationFrame(animar);
   const dt = reloj.getDelta();
   const jr = cicloActual === "uf" ? JRATIO[Math.min(minuto, JRATIO.length - 1)] : 1;
+  if (interiorOn) {
+    const retro = cicloActual === "retro";
+    const vAlim = cicloActual === "off" ? 0 : 0.35;
+    pAlimFib.forEach(m => {
+      m.visible = vAlim > 0 && !retro;
+      if (!m.visible) return;
+      m.userData.fase = (m.userData.fase + vAlim * dt) % 1;
+      const f = FIBRAS[m.userData.f];
+      m.position.set(0.95 + f[0], 0.57 + m.userData.fase * 1.02, f[1]);
+    });
+    pPermRad.forEach(m => {
+      m.visible = cicloActual !== "off";
+      if (!m.visible) return;
+      const paso = (retro ? -1 : 1) * (0.55 * (retro ? 1 : jr)) * dt;
+      m.userData.prog += paso;
+      if (m.userData.prog > 1) { m.userData.prog = 0; m.userData.y = 0.6 + Math.random() * 0.9; }
+      if (m.userData.prog < 0) { m.userData.prog = 1; m.userData.y = 0.6 + Math.random() * 0.9; }
+      const f = FIBRAS[m.userData.f];
+      const r0 = 0.014, r1 = 0.072;
+      const r = r0 + (r1 - r0) * m.userData.prog;
+      const cx = 0.95 + f[0] * (1 - m.userData.prog);     // converge hacia la carcasa
+      m.position.set(cx + Math.cos(m.userData.ang) * r,
+                     m.userData.y + m.userData.prog * 0.05,
+                     f[1] * (1 - m.userData.prog) + Math.sin(m.userData.ang) * r);
+    });
+    pBurbujas.forEach(m => {
+      m.visible = retro;
+      if (!m.visible) return;
+      m.userData.fase = (m.userData.fase + 0.3 * dt) % 1;
+      m.position.set(0.95 + Math.cos(m.userData.ang) * m.userData.r,
+                     0.57 + m.userData.fase * 1.02,
+                     Math.sin(m.userData.ang) * m.userData.r);
+    });
+  }
   Object.entries(tubos).forEach(([id, t]) => {
     if (!t.activo) return;
     const esPermeado = id.startsWith("permeado");
