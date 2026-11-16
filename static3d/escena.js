@@ -168,17 +168,29 @@ cil(bDos, 0.025, 0.05, M.blanco, 0.62, 1.54, -0.12);
 registrar(bDos);
 
 // ------------------------------------------------------------- tanques
-function barril(cid, x, z, r, h) {
+function barril(cid, x, z, r, h, ladoEquipo) {
   const g = grupo(cid);
-  caja(g, r * 2.6, 0.06, r * 2.6, M.acero, x, 0.07, z);             // báscula
+  caja(g, r * 2.6, 0.06, r * 2.6, M.acero, x, 0.07, z);             // báscula (plataforma)
+  caja(g, 0.14, 0.05, 0.03, M.negro, x, 0.125, z + r * 1.3);        // indicador de peso
   cil(g, r, h, M.azulBarril, x, 0.1 + h / 2, z);
   cil(g, r + 0.012, 0.03, M.azulTapa, x, 0.1 + h + 0.015, z);
   cil(g, r + 0.008, 0.025, M.azulTapa, x, 0.1 + h * 0.4, z);        // aro
+  // puertos: salida inferior y conexión superior (blancos, hacia el equipo)
+  cil(g, 0.022, 0.09, M.blanco, x + ladoEquipo * (r + 0.04), 0.1 + 0.12, z, "z");
+  cil(g, 0.022, 0.09, M.blanco, x + ladoEquipo * (r + 0.04), 0.1 + h - 0.1, z, "z");
   registrar(g);
   return g;
 }
-barril("tanqueAlimentacion", -0.95, 0.8, 0.25, 0.78);
-barril("tanquePermeado", 1.18, 0.85, 0.19, 0.58);
+barril("tanqueAlimentacion", -0.95, 0.8, 0.25, 0.78, 1);
+barril("tanquePermeado", 1.18, 0.85, 0.19, 0.58, -1);
+
+const caneca = grupo("canecaResiduos");                             // residuos del químico
+const canCuerpo = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.085, 0.3, 20),
+  new THREE.MeshPhongMaterial({ color: 0xc02a24 }));
+canCuerpo.position.set(0.05, 0.15, 1.22);
+caneca.add(canCuerpo);
+cil(caneca, 0.095, 0.015, M.negro, 0.05, 0.3, 1.22);
+registrar(caneca);
 
 // ------------------------------------------------------------- otros
 const vRoja = grupo("valvulaRoja");
@@ -214,7 +226,7 @@ function tubo(id, color, puntos, radio) {
 const C = { ent: 0x1fa23a, per: 0x1565d8, rec: 0xd8342c, lav: 0x18b8c4, aire: 0xf08c1a };
 
 tubo("entradaLactosuero", C.ent, [
-  [-0.95, 0.35, 0.8], [-0.75, 0.12, 0.7], [-0.52, 0.1, 0.62], [-0.44, 0.3, 0.4],
+  [-0.68, 0.22, 0.8], [-0.62, 0.12, 0.7], [-0.52, 0.1, 0.62], [-0.44, 0.3, 0.4],
   [-0.52, 0.6, 0.06], [-0.52, 1.2, 0.02], [-0.3, 1.12, 0.1], [0.3, 0.6, 0.12],
   [0.75, 0.5, 0.08], [0.9, 0.52, 0.03]]);
 tubo("entradaAgua", C.ent, [
@@ -223,16 +235,18 @@ tubo("entradaAgua", C.ent, [
   [0.75, 0.5, 0.08], [0.9, 0.52, 0.03]]);
 tubo("rechazoTanque", C.rec, [
   [1.0, 1.56, 0], [0.8, 1.7, -0.2], [0.1, 1.52, -0.38], [-0.6, 1.2, -0.05],
-  [-0.9, 1.0, 0.55], [-0.95, 0.92, 0.78]]);
+  [-0.85, 0.95, 0.6], [-0.66, 0.8, 0.78]]);
 tubo("rechazoDrenaje", C.rec, [
   [1.0, 1.56, 0], [1.12, 1.2, 0.2], [0.85, 0.6, 0.7], [0.5, 0.15, 1.18]]);
 tubo("permeadoTanque", C.per, [
-  [0.95, 1.75, 0], [1.08, 1.8, 0.12], [1.32, 1.25, 0.45], [1.18, 0.78, 0.82]]);
+  [0.95, 1.75, 0], [1.08, 1.8, 0.12], [1.25, 1.2, 0.5], [0.93, 0.62, 0.85]]);
 tubo("permeadoDrenaje", C.per, [
   [0.95, 1.75, 0], [0.8, 1.6, 0.35], [0.55, 0.7, 0.95], [0.42, 0.12, 1.2]]);
 tubo("lavado", C.lav, [
-  [-0.95, 0.35, 0.72], [-0.5, 0.2, 0.35], [-0.1, 0.3, 0.02], [0.14, 0.42, 0.06],
+  [-0.68, 0.22, 0.78], [-0.5, 0.2, 0.35], [-0.1, 0.3, 0.02], [0.14, 0.42, 0.06],
   [0.32, 0.44, 0.08], [0.7, 0.44, 0.02], [0.9, 0.5, 0.0]]);
+tubo("quimicoCaneca", C.lav, [
+  [1.0, 1.56, 0], [1.08, 1.1, 0.35], [0.7, 0.5, 0.9], [0.07, 0.34, 1.21]]);
 tubo("aireLinea", C.aire, [
   [0.72, 1.05, -0.13], [0.8, 0.8, -0.1], [0.88, 0.58, -0.04]], 0.01);
 
@@ -323,6 +337,7 @@ const RUTAS = {
   uf: ["entradaLactosuero", "rechazoTanque", "permeadoTanque"],
   lavR: ["entradaAgua", "rechazoDrenaje"],
   lavP: ["entradaAgua", "permeadoDrenaje"],
+  quim: ["lavado", "quimicoCaneca"],
   retro: ["lavado", "aireLinea", "rechazoDrenaje"],
 };
 let cicloActual = "off";
