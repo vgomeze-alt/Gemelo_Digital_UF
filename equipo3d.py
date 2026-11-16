@@ -99,12 +99,13 @@ COMPONENTES = {
         "fuente": "Manual (componente 10) · Tesis (caracterización)",
     },
     "bombaDosificadora": {
-        "nombre": "Bomba dosificadora",
-        "desc": ("Prevista para dosificar el químico de limpieza (botón DOSIFICADORA "
-                 "del tablero). En la operación actual del laboratorio no se usa un "
-                 "tanque químico dedicado: para la limpieza se desocupan los tanques "
-                 "azules, se llenan con agua y el NaOH al 1 % p/v se agrega manualmente."),
-        "fuente": "Tesis (componente 8) · Manual (NaOH 1 %) · aclaración del laboratorio",
+        "nombre": "Dosificadora (no se usa como bomba aparte)",
+        "desc": ("Dispositivo verde del equipo con su botón DOSIFICADORA en el "
+                 "tablero. En la operación actual NO se usa como una bomba aparte: la "
+                 "limpieza sale del mismo tanque azul, impulsada por la MISMA bomba "
+                 "con la que se alimenta el lactosuero; el NaOH al 1 % p/v se prepara "
+                 "manualmente en ese tanque."),
+        "fuente": "Aclaración del laboratorio",
     },
     "bombaLavado": {
         "nombre": "Bomba de lavado (del equipo)",
@@ -160,7 +161,7 @@ CICLOS = {
     "lavP": {"etiqueta": "🚿 Lavado con agua: línea de permeado (V1+V4)", "valvulas": [1, 4],
              "detalle": "Agua de red por la línea de permeado hacia el DRENAJE, para limpiar el interior de las fibras."},
     "quim": {"etiqueta": "🧪 Limpieza química (NaOH) → caneca", "valvulas": [1, 3],
-             "detalle": "El NaOH al 1 % se prepara manualmente en el tanque azul desocupado; la bomba de lavado lo recircula por la membrana y la solución usada se recoge en la CANECA de residuos (no va al drenaje) para desecharla en el punto indicado. Recorrido representativo."},
+             "detalle": "El NaOH al 1 % se prepara manualmente en el tanque azul desocupado y se bombea con la MISMA bomba del lactosuero hacia la membrana; la solución usada se recoge en la CANECA de residuos (no va al drenaje) para desecharla en el punto indicado. Activa 🔬 para ver cómo disuelve la torta."},
     "retro": {"etiqueta": "💨 Retrolavado + aire (V5)", "valvulas": [5],
               "detalle": "Agua del tanque azul (con NaOH agregado manualmente si es limpieza química), impulsada por la bomba de lavado en contraflujo, más aire comprimido: desprende la torta (cada 15–60 min, 30–60 s)."},
 }
@@ -173,13 +174,15 @@ def _libs_three():
     return three, orbit
 
 
-def _html_escena(j_ratio):
+def _html_escena(j_ratio, j_curva, c_curva):
     three, orbit = _libs_three()
     plantilla = (_AQUI / "static3d" / "escena.js").read_text(encoding="utf-8")
     escena = (plantilla
               .replace("__COMPONENTES__", json.dumps(COMPONENTES, ensure_ascii=False))
               .replace("__CICLOS__", json.dumps(CICLOS, ensure_ascii=False))
-              .replace("__JRATIO__", json.dumps(j_ratio)))
+              .replace("__JRATIO__", json.dumps(list(j_ratio)))
+              .replace("__JCURVE__", json.dumps(list(j_curva)))
+              .replace("__CCURVE__", json.dumps(list(c_curva))))
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>
   html,body {{ margin:0; padding:0; overflow:hidden; font-family:"Source Sans Pro",Helvetica,Arial,sans-serif; }}
@@ -211,12 +214,22 @@ def _html_escena(j_ratio):
   <input type="range" id="min" min="0" max="40" value="0" step="1" style="width:170px">
   <div style="font-size:11px;color:#586c7c">El permeado se frena según el modelo de Hermia<br>y la membrana se tiñe por el ensuciamiento</div></div>
 <div id="detalleCiclo"></div>
-<div id="interiorInfo" style="display:none;position:absolute;right:10px;bottom:95px;
-  max-width:330px;background:rgba(8,46,82,.92);color:#fff;border-radius:10px;padding:9px 13px;font-size:12.5px;z-index:5">
-  <b>Interior del módulo (inside-out):</b> el lactosuero entra por <b>dentro de cada fibra hueca</b>;
-  el agua, la lactosa y las sales atraviesan la pared porosa (corte 100 kDa) hacia la carcasa
-  —<b>permeado</b>, azul— y la proteína, demasiado grande para los poros, sigue de largo
-  —<b>rechazo</b>—. En retrolavado el flujo se invierte y sube <b>aire</b> a contracorriente.</div>
+<div id="panelInterior" style="display:none;position:absolute;right:10px;top:10px;width:335px;
+  background:rgba(255,255,255,.96);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.22);
+  padding:12px 14px;z-index:5;font-size:13px;color:#213547">
+  <h3 id="faseT" style="margin:0 0 5px;font-size:15.5px;color:#082e52"></h3>
+  <p id="faseD" style="margin:0 0 7px;line-height:1.4"></p>
+  <div id="lectura" style="background:#eef4fa;border-radius:8px;padding:5px 9px;margin-bottom:7px;font-size:12.5px"></div>
+  <div id="zonaGraficas"><canvas id="gf" width="307" height="195"></canvas></div>
+  <div style="font-size:11.5px;color:#586c7c;margin:4px 0 2px">Torta de proteína depositada</div>
+  <div style="height:8px;background:#edf2f7;border-radius:4px;overflow:hidden;margin-bottom:8px">
+    <div id="barraTorta" style="height:100%;width:0%;background:linear-gradient(90deg,#e0b56b,#8a5a22)"></div></div>
+  <div id="ctrlTiempo" style="display:flex;gap:8px;align-items:center">
+    <button id="btnPlay" style="border:none;border-radius:8px;padding:7px 10px;background:#082e52;color:#fff;
+      font-size:12.5px;cursor:pointer;white-space:nowrap">▶ Reproducir 0–40 min</button>
+    <input type="range" id="minInt" min="0" max="40" value="0" step="1" style="flex:1">
+  </div>
+</div>
 <div id="hint">Arrastra para rotar · rueda para acercar · clic en un componente</div>
 <div id="tarjeta"><button class="cerrar" onclick="document.getElementById('tarjeta').style.display='none'">✕</button>
   <h3 id="tN"></h3><p id="tD"></p><div class="fuente" id="tF"></div></div>
@@ -230,7 +243,7 @@ def _html_escena(j_ratio):
 </body></html>"""
 
 
-def pagina_equipo3d(PARAMS, modelo_J_torta):
+def pagina_equipo3d(PARAMS, modelo_J_torta, modelo_C):
     st.write("# Equipo 3D")
     st.markdown(
         "Recorre el equipo real de ultrafiltración **MARTIN MTUF-PVC-4046** (AI-UF-1-4): "
@@ -240,8 +253,12 @@ def pagina_equipo3d(PARAMS, modelo_J_torta):
     )
     # Velocidad relativa del permeado según Hermia (conecta el 3D con el modelo del gemelo)
     t = np.arange(0, 41, 1.0)
-    j_ratio = (modelo_J_torta(t) / float(modelo_J_torta(0.0))).round(4).tolist()
-    components.html(_html_escena(tuple(j_ratio)), height=660, scrolling=False)
+    J = modelo_J_torta(t)
+    j_ratio = (J / float(J[0])).round(4).tolist()
+    j_curva = J.round(2).tolist()
+    c_curva = modelo_C(t, float(PARAMS["C0_valido"])).round(2).tolist()
+    components.html(_html_escena(tuple(j_ratio), tuple(j_curva), tuple(c_curva)),
+                    height=660, scrolling=False)
     st.caption(
         "Modelo esquemático: los componentes, las válvulas, los ciclos y la ficha técnica "
         "están documentados (manual, tesis y P&ID de RIELCO); las dimensiones, proporciones "

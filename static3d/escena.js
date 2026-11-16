@@ -5,6 +5,8 @@
 const COMPONENTES = __COMPONENTES__;
 const CICLOS = __CICLOS__;
 const JRATIO = __JRATIO__;   // J(t)/J0 del modelo de Hermia, t = 0..40 min
+const JCURVE = __JCURVE__;   // J(t) en L/m2 h
+const CCURVE = __CCURVE__;   // C(t) en g/L (balance por lotes)
 
 // ------------------------------------------------------------- base
 const canvas = document.getElementById("c");
@@ -245,6 +247,10 @@ tubo("permeadoDrenaje", C.per, [
 tubo("lavado", C.lav, [
   [-0.68, 0.22, 0.78], [-0.5, 0.2, 0.35], [-0.1, 0.3, 0.02], [0.14, 0.42, 0.06],
   [0.32, 0.44, 0.08], [0.7, 0.44, 0.02], [0.9, 0.5, 0.0]]);
+tubo("quimicoEntrada", C.lav, [
+  [-0.68, 0.22, 0.8], [-0.62, 0.12, 0.7], [-0.52, 0.1, 0.62], [-0.44, 0.3, 0.4],
+  [-0.52, 0.6, 0.06], [-0.52, 1.2, 0.02], [-0.3, 1.12, 0.1], [0.3, 0.6, 0.12],
+  [0.75, 0.5, 0.08], [0.9, 0.52, 0.03]]);
 tubo("quimicoCaneca", C.lav, [
   [1.0, 1.56, 0], [1.08, 1.1, 0.35], [0.7, 0.5, 0.9], [0.07, 0.34, 1.21]]);
 tubo("aireLinea", C.aire, [
@@ -284,6 +290,23 @@ FIBRAS.forEach(f => {
   clicables.push(fib);
   interiorG.add(fib);
 });
+const tortas = [], retenidos = [];
+FIBRAS.forEach(f => {
+  const t = new THREE.Mesh(new THREE.CylinderGeometry(0.0095, 0.0095, 1.0, 10),
+    new THREE.MeshPhongMaterial({ color: 0xc08a3e, transparent: true, opacity: 0 }));
+  t.position.set(0.95 + f[0], 1.08, f[1]);
+  t.userData.cid = "membrana";
+  interiorG.add(t); tortas.push(t);
+});
+for (let i = 0; i < 24; i++) {                        // proteína retenida en la pared
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.006, 6, 6),
+    new THREE.MeshBasicMaterial({ color: 0x2e7d32 }));
+  const f = FIBRAS[i % 7], a = Math.random() * 6.28;
+  m.position.set(0.95 + f[0] + Math.cos(a) * 0.0105, 0.6 + Math.random() * 0.95,
+                 f[1] + Math.sin(a) * 0.0105);
+  m.visible = false;
+  interiorG.add(m); retenidos.push(m);
+}
 const pAlimFib = [], pPermRad = [], pBurbujas = [];
 for (let i = 0; i < 21; i++) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 8),
@@ -307,6 +330,93 @@ for (let i = 0; i < 14; i++) {
 }
 let interiorOn = false;
 let vistaPrev = null;
+let minuto = 0;
+let tortaNivel = 0;
+let reproduciendo = false;
+const AV_MAX = 1 - JRATIO[JRATIO.length - 1];
+
+function setMinuto(v) {
+  minuto = Math.max(0, Math.min(40, v));
+  tortaNivel = (1 - JRATIO[Math.round(minuto)]) / AV_MAX;
+  const sl = document.getElementById("min");
+  sl.value = Math.round(minuto);
+  document.getElementById("minv").textContent = Math.round(minuto);
+  const sl2 = document.getElementById("minInt");
+  if (sl2) { sl2.value = Math.round(minuto); }
+  refrescarInterior();
+}
+
+function textoFase() {
+  const m = Math.round(minuto), jr = JRATIO[m];
+  if (cicloActual === "uf") {
+    if (m < 4) return ["🟢 Membrana limpia", "El lactosuero entra por dentro de cada fibra. El flux arranca en su máximo (~" + JCURVE[0].toFixed(0) + " L/m²·h) y las primeras proteínas, demasiado grandes para los poros, comienzan a depositarse en la pared interna."];
+    if (m < 15) return ["🟠 Se forma la torta", "La capa de proteína (ámbar) crece sobre la pared de las fibras y suma una resistencia extra: el flux cae rápido. El agua, la lactosa y las sales siguen atravesando hacia la carcasa."];
+    if (m < 30) return ["🟤 La torta se compacta", "La capa ya formada crece más despacio y se compacta: la caída del flux se frena. En el tanque, el rechazo que retorna concentra la proteína cada vez más rápido."];
+    return ["🔴 Final de la práctica", "La torta domina la resistencia: el flux queda en ~" + (100 * jr).toFixed(0) + " % del inicial. Es el momento de parar y lavar la membrana."];
+  }
+  if (cicloActual === "lavR" || cicloActual === "lavP")
+    return ["🚿 Lavado con agua", "El agua arrastra el lactosuero residual de fibras y líneas hacia el drenaje, pero la torta ADHERIDA casi no se remueve: por eso después vienen el retrolavado y la limpieza química."];
+  if (cicloActual === "quim")
+    return ["🧪 Limpieza química", "La solución de NaOH (preparada en el tanque azul y bombeada con la MISMA bomba del lactosuero) disuelve la capa de proteína: mira cómo la torta desaparece de las fibras. La solución usada sale a la caneca de residuos."];
+  if (cicloActual === "retro")
+    return ["💨 Retrolavado + aire", "Agua en sentido contrario (de la carcasa hacia el lumen) y burbujas de aire a contracorriente despegan la torta mecánicamente. El fabricante lo recomienda cada 15–60 min, por 30–60 s."];
+  return ["⏹ Equipo detenido", "Elige un modo de operación y presiona ▶ para ver qué pasa dentro de la membrana a lo largo del tiempo."];
+}
+
+function refrescarInterior() {
+  // torta sobre las fibras y tinte de la carcasa
+  tortas.forEach(t => { t.material.opacity = interiorOn ? 0.15 + 0.7 * tortaNivel : 0; });
+  retenidos.forEach((m, i) => { m.visible = interiorOn && i < Math.round(tortaNivel * retenidos.length); });
+  const col = new THREE.Color(0xf2f2ee).lerp(new THREE.Color(0xcfa05e), tortaNivel);
+  matMembrana.color.copy(col);
+  if (!interiorOn) return;
+  const [tt, dd] = textoFase();
+  document.getElementById("faseT").textContent = tt;
+  document.getElementById("faseD").textContent = dd;
+  const m = Math.round(minuto);
+  document.getElementById("lectura").innerHTML = cicloActual === "uf"
+    ? "min <b>" + m + "</b> · J ≈ <b>" + JCURVE[m].toFixed(1) + "</b> L/m²·h · C tanque ≈ <b>" + CCURVE[m].toFixed(1) + "</b> g/L"
+    : "Torta depositada: <b>" + Math.round(tortaNivel * 100) + " %</b>" +
+      (tortaNivel < 0.03 && (cicloActual === "quim" || cicloActual === "retro")
+        ? " · ✅ membrana limpia: el flux vuelve a su línea base" : "");
+  document.getElementById("barraTorta").style.width = Math.round(tortaNivel * 100) + "%";
+  const esUF = cicloActual === "uf";
+  document.getElementById("zonaGraficas").style.display = esUF ? "block" : "none";
+  document.getElementById("ctrlTiempo").style.display = esUF ? "flex" : "none";
+  if (esUF) dibujarGraficas();
+}
+
+function dibujarGraficas() {
+  const cv = document.getElementById("gf");
+  const g = cv.getContext("2d");
+  const W = cv.width, H = cv.height, mx = 34, mt = 14, gap = 26;
+  const ph = (H - mt * 2 - gap) / 2;
+  g.clearRect(0, 0, W, H);
+  function serie(datos, y0, cmin, cmax, color, titulo, unidad) {
+    g.strokeStyle = "#e2e8f0"; g.strokeRect(mx, y0, W - mx - 8, ph);
+    g.strokeStyle = color; g.lineWidth = 2; g.beginPath();
+    datos.forEach((v, i) => {
+      const x = mx + (W - mx - 8) * i / 40;
+      const y = y0 + ph - ph * (v - cmin) / (cmax - cmin);
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    });
+    g.stroke();
+    const i = Math.round(minuto);
+    const x = mx + (W - mx - 8) * i / 40;
+    const y = y0 + ph - ph * (datos[i] - cmin) / (cmax - cmin);
+    g.fillStyle = color; g.beginPath(); g.arc(x, y, 4, 0, 6.3); g.fill();
+    g.fillStyle = "#213547"; g.font = "bold 10px Arial";
+    g.fillText(titulo, mx, y0 - 3);
+    g.fillStyle = "#586c7c"; g.font = "9px Arial";
+    g.fillText(cmax.toFixed(0), 4, y0 + 9);
+    g.fillText(cmin.toFixed(0), 4, y0 + ph);
+    g.fillText(unidad, W - 56, y0 - 3);
+  }
+  serie(JCURVE, mt, 5, 20, "#1565d8", "Flux de permeado J(t)", "L/m²·h");
+  serie(CCURVE, mt + ph + gap, 7, 13, "#082e52", "C de proteína en el tanque", "g/L");
+  g.fillStyle = "#586c7c"; g.font = "9px Arial";
+  g.fillText("0", mx, H - 2); g.fillText("40 min", W - 40, H - 2);
+}
 function verInterior(on) {
   interiorOn = on;
   interiorG.visible = on;
@@ -314,8 +424,10 @@ function verInterior(on) {
   matMembrana.opacity = on ? 0.22 : 1.0;
   matMembrana.depthWrite = !on;
   matMembrana.needsUpdate = true;
-  document.getElementById("interiorInfo").style.display = on ? "block" : "none";
+  document.getElementById("panelInterior").style.display = on ? "block" : "none";
+  document.getElementById("foul").style.display = (!on && cicloActual === "uf") ? "block" : "none";
   document.getElementById("btnInterior").classList.toggle("act", on);
+  refrescarInterior();
   if (on) {
     vistaPrev = { pos: camera.position.clone(), tgt: controls.target.clone() };
     camera.position.set(2.15, 1.25, 1.3);
@@ -337,11 +449,10 @@ const RUTAS = {
   uf: ["entradaLactosuero", "rechazoTanque", "permeadoTanque"],
   lavR: ["entradaAgua", "rechazoDrenaje"],
   lavP: ["entradaAgua", "permeadoDrenaje"],
-  quim: ["lavado", "quimicoCaneca"],
+  quim: ["quimicoEntrada", "quimicoCaneca"],
   retro: ["lavado", "aireLinea", "rechazoDrenaje"],
 };
 let cicloActual = "off";
-let minuto = 0;
 
 function aplicarCiclo(c) {
   cicloActual = c;
@@ -361,17 +472,16 @@ function aplicarCiclo(c) {
   pilotoBomba.material.color.setHex(andando ? 0xffc04d : 0xf0a01a);
   document.getElementById("detalleCiclo").innerHTML =
     "<b>" + CICLOS[c].etiqueta + "</b><br>" + CICLOS[c].detalle;
-  document.getElementById("foul").style.display = c === "uf" ? "block" : "none";
+  document.getElementById("foul").style.display = (c === "uf" && !interiorOn) ? "block" : "none";
   document.querySelectorAll(".panelbtns button").forEach(b =>
     b.classList.toggle("act", b.dataset.c === c));
-  if (c !== "uf") pintarFouling(0);
-}
-
-function pintarFouling(min) {
-  const jr = JRATIO[Math.min(min, JRATIO.length - 1)];
-  const avance = (1 - jr) / (1 - JRATIO[JRATIO.length - 1]);   // 0 limpio → 1 sucio (40 min)
-  const col = new THREE.Color(0xf2f2ee).lerp(new THREE.Color(0xcfa05e), avance);
-  cuerpoMembrana.material.color.copy(col);
+  reproduciendo = false;
+  const bp = document.getElementById("btnPlay");
+  if (bp) bp.textContent = "▶ Reproducir 0–40 min";
+  // color de lo que circula por dentro de las fibras según el modo
+  const colAlim = c === "uf" ? 0xd9cf9e : (c === "quim" ? 0x18b8c4 : 0x7fd4ff);
+  pAlimFib.forEach(m => m.material.color.setHex(colAlim));
+  if (c === "uf") setMinuto(minuto); else refrescarInterior();
 }
 
 const cont = document.getElementById("botones");
@@ -388,10 +498,14 @@ bi.textContent = "🔬 Interior de la membrana";
 bi.onclick = () => verInterior(!interiorOn);
 cont.appendChild(bi);
 const slider = document.getElementById("min");
-slider.oninput = () => {
-  minuto = +slider.value;
-  document.getElementById("minv").textContent = minuto;
-  pintarFouling(minuto);
+slider.oninput = () => setMinuto(+slider.value);
+const sliderInt = document.getElementById("minInt");
+sliderInt.oninput = () => setMinuto(+sliderInt.value);
+document.getElementById("btnPlay").onclick = () => {
+  if (minuto >= 40) setMinuto(0);
+  reproduciendo = !reproduciendo;
+  document.getElementById("btnPlay").textContent =
+    reproduciendo ? "⏸ Pausar" : "▶ Reproducir 0–40 min";
 };
 aplicarCiclo("off");
 
@@ -446,7 +560,20 @@ const reloj = new THREE.Clock();
 function animar() {
   requestAnimationFrame(animar);
   const dt = reloj.getDelta();
-  const jr = cicloActual === "uf" ? JRATIO[Math.min(minuto, JRATIO.length - 1)] : 1;
+  if (interiorOn && reproduciendo && cicloActual === "uf") {
+    setMinuto(minuto + dt * 2.2);                     // 40 min en ~18 s
+    if (minuto >= 40) {
+      reproduciendo = false;
+      document.getElementById("btnPlay").textContent = "▶ Reproducir 0–40 min";
+    }
+  }
+  if (interiorOn && (cicloActual === "quim" || cicloActual === "retro") && tortaNivel > 0) {
+    tortaNivel = Math.max(0, tortaNivel - dt * (cicloActual === "quim" ? 0.07 : 0.1));
+    refrescarInterior();
+  }
+  const jr = cicloActual === "uf"
+    ? JRATIO[Math.min(Math.round(minuto), JRATIO.length - 1)]
+    : 1 - 0.5 * tortaNivel;
   if (interiorOn) {
     const retro = cicloActual === "retro";
     const vAlim = cicloActual === "off" ? 0 : 0.35;
