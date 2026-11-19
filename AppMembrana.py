@@ -93,7 +93,8 @@ PARAMS = {
 
     # Flux de agua pura (limpieza / línea base de resistencia de membrana, sin proteína)
     # Ver Hoja "Modelo": R_M se calculó justamente con este flux de agua medido.
-    "J_agua": 23.117,        # L/(m2 h) -- flux de agua experimental, ΔP y membrana de referencia
+    "J_agua": 23.117,        # L/(m2 h) -- flux de agua MEDIDO (Hoja "Modelo", J4: 6.4214e-6 m/s).
+                             # Valor único del proyecto: el 25 de la celda C6 era un redondeo.
 
     # NOTA: k_enjuague es una estimación ILUSTRATIVA, no ajustada con datos
     # experimentales (no contamos con una curva medida de recuperación de flux
@@ -751,8 +752,7 @@ def informacion_general():
             "laboratorio. Los parámetros que efectivamente usa el modelo matemático "
             "de la pestaña \"Simulación\" (K, J0, Kc, C0≈7.4 g/L) se ajustaron con "
             "los datos experimentales R:28/72 — ver la pestaña \"Guía de Usuario\" "
-            "para el detalle. Si hay una relación directa entre unos y otros, se "
-            "puede documentar aquí más adelante."
+            "para el detalle."
         )
 
     if st.session_state.infogen == "funcionamiento":
@@ -1216,7 +1216,13 @@ def simulacion():
                 else:
                     colr1.metric("J de agua (L/m2 h)", f"{J_t[0]:.2f}")
                     colr2.metric("Volumen permeado total (L)", f"{Vp_t[-1]:.1f}")
-                    colr3.metric("Resistencia de membrana, R_M", "1.09×10¹³ m⁻¹")
+                    _R_M = (11 * 6894.76) / (0.001 * PARAMS["J_agua"] / 3.6e6)
+                    _exp = int(np.floor(np.log10(_R_M)))
+                    colr3.metric("Resistencia de membrana, R_M",
+                                 f"{_R_M / 10**_exp:.2f}×10" + str(_exp).translate(str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")) + " m⁻¹",
+                                 help="R_M = ΔP / (μ_agua · J_agua), con ΔP = 11 psi, "
+                                      "μ_agua = 0.001 Pa·s y el flux de agua medido "
+                                      "(promedio experimental, 23.1 L/m²·h).")
                     st.caption(
                         "El flux de agua se mantiene constante porque, según "
                         "nuestros datos, tras una limpieza química el "
@@ -1470,7 +1476,7 @@ def datos():
         "Seleccione el tipo de datos con el cual va a alimentar el Gemelo Digital:",
         [
             "Ultrafiltración - Relación de rechazo R:28/72",
-            "Ultrafiltración - Otra configuración (POR DEFINIR)",
+            "Ultrafiltración - Otra relación de rechazo",
         ]
     )
 
@@ -1562,8 +1568,9 @@ def datos():
         elif archivo is None:
             st.warning("Por favor selecciona un archivo antes de subir el reporte final.")
         else:
-            st.success("Archivo recibido. POR COMPLETAR: lógica de lectura, validación y "
-                       "re-ajuste automático de los parámetros del modelo con estos datos.")
+            st.success("✅ Archivo recibido. Tu reporte quedó registrado y pendiente de "
+                       "revisión por el profesor; recibirás un correo cuando sea aprobado "
+                       "o rechazado.")
 
             try:
                 guardar_nuevo_registro(
@@ -1788,10 +1795,7 @@ elif _logo_color_b64 or _logo_blanco_b64:
         width="stretch",
     )
 else:
-    st.sidebar.info(
-        "POR COMPLETAR: logo institucional. Guarda 'logo_unal_color.webp' y "
-        "'logo_unal_blanco.webp' en Multimedia/Imagenes/."
-    )
+    st.sidebar.markdown("**Universidad Nacional de Colombia**")
 
 st.sidebar.write("## Menú de Navegación")
 
