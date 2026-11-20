@@ -170,7 +170,7 @@ def _libs_three():
     return three, orbit
 
 
-def _html_escena(j_ratio, j_curva, c_curva):
+def _html_escena(j_ratio, j_curva, c_curva, vueltas_json="null"):
     three, orbit = _libs_three()
     plantilla = (_AQUI / "static3d" / "escena.js").read_text(encoding="utf-8")
     escena = (plantilla
@@ -178,7 +178,8 @@ def _html_escena(j_ratio, j_curva, c_curva):
               .replace("__CICLOS__", json.dumps(CICLOS, ensure_ascii=False))
               .replace("__JRATIO__", json.dumps(list(j_ratio)))
               .replace("__JCURVE__", json.dumps(list(j_curva)))
-              .replace("__CCURVE__", json.dumps(list(c_curva))))
+              .replace("__CCURVE__", json.dumps(list(c_curva)))
+              .replace("__VUELTAS__", vueltas_json))
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>
   html,body {{ margin:0; padding:0; overflow:hidden; font-family:"Source Sans Pro",Helvetica,Arial,sans-serif; }}
@@ -201,7 +202,7 @@ def _html_escena(j_ratio, j_curva, c_curva):
   #leyenda span {{ display:inline-block; width:18px; height:4px; border-radius:2px; margin:0 5px 2px 10px; }}
   #hint {{ position:absolute; top:10px; left:50%; transform:translateX(-50%); background:rgba(8,46,82,.85);
       color:#fff; border-radius:16px; padding:5px 14px; font-size:12.5px; z-index:4; }}
-  #foul {{ position:absolute; left:10px; bottom:74px; background:rgba(255,255,255,.93); border-radius:10px;
+  #foul {{ position:absolute; left:10px; top:318px; background:rgba(255,255,255,.93); border-radius:10px;
       padding:7px 12px; font-size:12.5px; color:#213547; box-shadow:0 1px 6px rgba(0,0,0,.15); display:none; }}
   #panelPractica {{ display:none; position:absolute; top:10px; right:10px; width:350px; max-height:625px;
       overflow-y:auto; background:rgba(255,255,255,.97); border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.22);
@@ -222,12 +223,26 @@ def _html_escena(j_ratio, j_curva, c_curva):
   #prPeligro {{ display:none; background:#fffaf0; border-left:4px solid #dd6b20; padding:5px 8px; margin:6px 0; }}
   #prCond {{ display:none; background:#ebf8ff; border-radius:8px; padding:5px 9px; margin:6px 0; }}
   #prFin {{ display:none; background:#f0fff4; border-radius:8px; padding:7px 9px; margin-top:6px; }}
+  #lecV9 {{ display:none; position:absolute; left:362px; top:44px; width:400px; max-width:calc(100% - 740px); min-width:260px;
+      background:rgba(255,255,255,.95); border-radius:10px; padding:7px 12px; font-size:12.5px; color:#213547;
+      box-shadow:0 1px 6px rgba(0,0,0,.18); border-left:5px solid #1f4e78; z-index:4; }}
+  #lecV9.peligro {{ border-left-color:#e53e3e; background:#fff5f5; }}
+  #lecV9 .etq {{ font-size:10.5px; border-radius:8px; padding:1px 6px; margin-left:4px; }}
+  #lecV9 .dato {{ background:#c6f6d5; color:#22543d; }}
+  #lecV9 .est {{ background:#feebc8; color:#7b341e; }}
+  #lecV9 .rango {{ color:#718096; font-size:11px; }}
+  #ctrlV9 {{ display:none; gap:6px; align-items:center; margin-top:6px; }}
+  #ctrlV9 button {{ border:1px solid #cbd5e0; background:#fff; border-radius:6px; padding:2px 9px; cursor:pointer; }}
 </style></head><body>
 <canvas id="c"></canvas>
 <div class="panelbtns" id="botones"></div>
 <div id="foul">Minuto de la práctica: <b id="minv">0</b><br>
   <input type="range" id="min" min="0" max="40" value="0" step="1" style="width:170px">
-  <div style="font-size:11px;color:#586c7c">El permeado se frena según el modelo de Hermia<br>y la membrana se tiñe por el ensuciamiento</div></div>
+  <div style="font-size:11px;color:#586c7c">El permeado se frena según el modelo de Hermia<br>y la membrana se tiñe por el ensuciamiento</div>
+</div>
+<div id="lecV9"><div id="lecV9txt"></div>
+  <div id="ctrlV9">Gira la válvula roja V9: <button id="v9m">− cerrar</button> vuelta <b id="v9Libre">2</b>
+    <button id="v9p">abrir +</button></div></div>
 <div id="detalleCiclo"></div>
 <div id="panelPractica">
   <h3>🎮 Modo práctica</h3>
@@ -286,7 +301,31 @@ def _html_escena(j_ratio, j_curva, c_curva):
 </body></html>"""
 
 
-def pagina_equipo3d(PARAMS, modelo_J_torta, modelo_C):
+@st.cache_data(show_spinner=False)
+def _tabla_vueltas(J_agua, C0, pts, base):
+    """Resumen por vuelta del modelo de la válvula roja (mismo Montecarlo del simulador
+    'Vueltas de la válvula roja', con sus supuestos por defecto)."""
+    import simulacion_presion as sp
+    from simulacion_vueltas import VUELTAS, correr_vueltas
+    r = correr_vueltas(J_agua, C0, 40, 20.0, 300, 2026, 1.0, 0.10, 4.0, 0.7, pts=pts, base=base)
+    P = r["dP"] / sp.PSI_A_PA
+    J0 = r["J"][:, :, 0]
+    con_datos = {2} | {int(v) for v, *_ in pts}
+    filas = []
+    for k, v in enumerate(VUELTAS):
+        filas.append({
+            "P": float(np.nanmedian(P[:, k])),
+            "Plo": float(np.nanpercentile(P[:, k], 5)),
+            "Phi": float(np.nanpercentile(P[:, k], 95)),
+            "J0": float(np.nanmedian(J0[:, k])),
+            "Qp": float(np.nanmedian(J0[:, k])) * 4.8 / 60,
+            "prob": float((r["dP"][:, k] / sp.BAR_A_PA > sp.P_MAX_FICHA_BAR).mean()),
+            "datos": int(v) in con_datos,
+        })
+    return json.dumps(filas)
+
+
+def pagina_equipo3d(PARAMS, modelo_J_torta, modelo_C, cargar_practicas=None):
     st.write("# Equipo 3D")
     st.markdown(
         "Recorre el equipo real de ultrafiltración **MARTIN MTUF-PVC-4046** (AI-UF-1-4): "
@@ -304,5 +343,19 @@ def pagina_equipo3d(PARAMS, modelo_J_torta, modelo_C):
     j_ratio = (J / float(J[0])).round(4).tolist()
     j_curva = J.round(2).tolist()
     c_curva = modelo_C(t, float(PARAMS["C0_valido"])).round(2).tolist()
-    components.html(_html_escena(tuple(j_ratio), tuple(j_curva), tuple(c_curva)),
+    try:
+        from modelo_actualizado import parametros_base, practicas_validas, puntos_valvula
+        practicas = practicas_validas(cargar_practicas()) if cargar_practicas else []
+        base = parametros_base(practicas)
+        vueltas_json = _tabla_vueltas(float(PARAMS["J_agua"]), float(PARAMS["C0_valido"]),
+                                      tuple(puntos_valvula(practicas)),
+                                      (base["J0"], base["Kc"], base["K"]) if base["n_practicas"] else None)
+    except Exception:
+        vueltas_json = "null"
+    components.html(_html_escena(tuple(j_ratio), tuple(j_curva), tuple(c_curva), vueltas_json),
                     height=660, scrolling=False)
+    st.caption("🔧 Con el ciclo de operación con lactosuero activo, cambia la vuelta de la válvula roja "
+               "V9 (abajo a la izquierda o en el modo práctica): el manómetro de entrada, los "
+               "rotámetros y el chorro de permeado responden con el modelo del simulador. La vuelta 2 "
+               "es dato experimental; las demás son estimaciones (ver Simulación → Vueltas de la "
+               "válvula roja).")
