@@ -123,7 +123,7 @@ def pagina_vueltas(PARAMS, cargar_practicas=None):
     if practicas:
         otras = sorted({v for v, *_ in pts if v != 2})
         st.info(f"🧠 **El modelo aprendió de {len(practicas)} práctica(s) aprobada(s).** "
-                f"Vuelta 2: {base['n_corridas']} corridas (tesis + {base['n_practicas']} prácticas)."
+                f"Vuelta 2: {base['n_corridas']} corridas (3 réplicas de laboratorio + {base['n_practicas']} práctica(s))."
                 + (f" Válvula calibrada con presiones medidas en las vueltas {', '.join(map(str, otras))}."
                    if otras else " Aún no hay prácticas en otras vueltas para calibrar la válvula."))
 
@@ -290,8 +290,8 @@ la compresibilidad de la torta, la temperatura, y los parámetros de la válvula
 cierre). La vuelta 2 queda anclada a 11 psi; por eso su banda es la más estrecha.
 
 **El modelo aprende de las prácticas:** cada práctica que el profesor aprueba (sin alertas graves)
-se suma automáticamente. Las de la vuelta 2 actualizan $J_0$, $K_c$ y $K$ (promedio por corrida con la
-tesis); las de otras vueltas aportan su presión de entrada medida, que corrige la curva de la válvula
+se suma automáticamente. Las de la vuelta 2 actualizan $J_0$, $K_c$ y $K$ (promedio por corrida con las
+3 réplicas de laboratorio); las de otras vueltas aportan su presión de entrada medida, que corrige la curva de la válvula
 combinando el supuesto inicial con los datos (calibración bayesiana). En las gráficas aparecen como ✕
 y la banda se estrecha a medida que hay más prácticas. Basta con una corrida corta (10–15 min) en
 otras vueltas, anotando la presión de entrada y el peso de permeado en la plantilla.

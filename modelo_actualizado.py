@@ -3,8 +3,8 @@
 #
 # Cada práctica aprobada (y sin alertas graves) aporta:
 #   1. Si es de la VUELTA 2: una corrida más para los parámetros del modelo
-#      base. J0, Kc y K pasan a ser el promedio por corrida de la tesis
-#      (3 réplicas) + las prácticas aprobadas; su dispersión entre corridas
+#      base. J0, Kc y K pasan a ser el promedio por corrida de las 3 réplicas
+#      de laboratorio + las prácticas aprobadas; su dispersión entre corridas
 #      alimenta la incertidumbre del Montecarlo.
 #   2. Si es de OTRA VUELTA y trae la presión de entrada: un punto para
 #      calibrar la curva de la válvula roja. La calibración es bayesiana: el
@@ -20,8 +20,8 @@ import json
 import numpy as np
 import pandas as pd
 
-# ---- referencia: tesis, vuelta 2 (3 réplicas)
-TESIS = {"J0": 19.0545, "Kc": 1.33995e-4, "K": 0.0012680, "n_corridas": 3, "P_psi": 11.0}
+# ---- referencia: pruebas de laboratorio, vuelta 2 (3 réplicas)
+REFERENCIA = {"J0": 19.0545, "Kc": 1.33995e-4, "K": 0.0012680, "n_corridas": 3, "P_psi": 11.0}
 
 # Supuestos iniciales de la válvula (los mismos del modo de vueltas)
 PRIOR_N = (1.0, 0.25)          # media, desviación
@@ -52,17 +52,17 @@ def practicas_validas(df):
 
 
 def parametros_base(practicas):
-    """J0, Kc, K promediados por corrida: tesis (3) + prácticas de la vuelta 2."""
+    """J0, Kc, K promediados por corrida: 3 réplicas de laboratorio + prácticas de la vuelta 2."""
     v2 = [p for p in practicas if p["vuelta"] == 2 and p.get("J0") and p.get("Kc")]
     if not v2:
-        return dict(TESIS, n_practicas=0)
-    n = TESIS["n_corridas"]
-    J0 = (TESIS["J0"] * n + sum(p["J0"] for p in v2)) / (n + len(v2))
-    Kc = (TESIS["Kc"] * n + sum(p["Kc"] for p in v2)) / (n + len(v2))
+        return dict(REFERENCIA, n_practicas=0)
+    n = REFERENCIA["n_corridas"]
+    J0 = (REFERENCIA["J0"] * n + sum(p["J0"] for p in v2)) / (n + len(v2))
+    Kc = (REFERENCIA["Kc"] * n + sum(p["Kc"] for p in v2)) / (n + len(v2))
     conK = [p["K"] for p in v2 if p.get("K")]
-    K = (TESIS["K"] * n + sum(conK)) / (n + len(conK))
+    K = (REFERENCIA["K"] * n + sum(conK)) / (n + len(conK))
     return {"J0": J0, "Kc": Kc, "K": K, "n_corridas": n + len(v2), "n_practicas": len(v2),
-            "P_psi": TESIS["P_psi"]}
+            "P_psi": REFERENCIA["P_psi"]}
 
 
 def puntos_valvula(practicas):

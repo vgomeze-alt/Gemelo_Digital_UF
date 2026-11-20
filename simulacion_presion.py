@@ -181,7 +181,7 @@ def pagina_presion(PARAMS):
         st.caption(f"= {dP_psi * PSI_A_PA / BAR_A_PA:.2f} bar")
         p_max_bar = st.number_input(
             "Presión máxima de la membrana (bar)", 0.5, 10.0, P_MAX_FICHA_BAR, 0.1,
-            help="Ficha técnica del fabricante (Tabla 7 de la tesis): presión máxima de "
+            help="Ficha técnica del fabricante: presión máxima de "
                  "alimento de la membrana MARTIN MTUF-PVC-4046 = 0.4 MPa (4 bar).")
         st.caption(f"= {p_max_bar * BAR_A_PA / PSI_A_PA:.0f} psi · ficha técnica del fabricante (0.4 MPa)")
         estado = st.selectbox("Estado de la membrana", list(ESTADOS_MEMBRANA),
@@ -385,7 +385,7 @@ La banda sombreada contiene el 90 % de los resultados. A 11 psi contiene los 15 
 experimentales de las 3 réplicas.
 
 **Presión máxima**: {P_MAX_FICHA_BAR:.1f} bar por defecto, según la ficha técnica del fabricante
-(Tabla 7 de la tesis: presión máxima de alimento de 0.4 MPa para la membrana MARTIN MTUF-PVC-4046).
+(presión máxima de alimento de 0.4 MPa para la membrana MARTIN MTUF-PVC-4046).
 
 **Limitaciones**: no se modela que una torta más gruesa (por más flux) crezca más rápido, ni la
 pérdida de rechazo por encima de la presión máxima; tampoco el efecto de la velocidad de flujo

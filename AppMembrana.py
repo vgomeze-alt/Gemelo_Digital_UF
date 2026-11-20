@@ -284,9 +284,11 @@ def cargar_practicas():
     if _config_gsheets():
         try:
             filas = _llamar_script("GET", hoja="practicas")["filas"]
-        except RuntimeError:
+        except RuntimeError as e:
             # Apps Script sin la pestaña 'practicas' (versión anterior del script)
+            st.session_state["practicas_error"] = str(e)
             return pd.DataFrame(columns=COLUMNAS_PRACTICA)
+        st.session_state.pop("practicas_error", None)
         return pd.DataFrame(filas, columns=COLUMNAS_PRACTICA)
     try:
         return pd.read_csv(PRACTICAS_PATH, dtype=str)
@@ -955,9 +957,9 @@ def simulacion():
             if _base["n_practicas"]:
                 fuente = st.radio(
                     "Parámetros del modelo",
-                    ["Tesis (3 réplicas)",
-                     f"🧠 Actualizado (tesis + {_base['n_practicas']} práctica(s) aprobada(s))"],
-                    help="El modelo actualizado promedia por corrida los parámetros de la tesis y "
+                    ["Pruebas de laboratorio (3 réplicas)",
+                     f"🧠 Actualizado (3 réplicas + {_base['n_practicas']} práctica(s) aprobada(s))"],
+                    help="El modelo actualizado promedia por corrida los parámetros de las 3 réplicas de laboratorio y "
                          "de las prácticas de la vuelta 2 aprobadas por el profesor.")
                 if fuente.startswith("🧠"):
                     params_sim = {"K": _base["K"], "J0": _base["J0"], "Kc": _base["Kc"]}
@@ -1699,8 +1701,15 @@ def datos():
                    "calibran la válvula roja (otras vueltas). Puedes excluir una sin rechazarla.")
         from modelo_actualizado import tabla_practicas
         tp = tabla_practicas(cargar_practicas())
+        if st.session_state.get("practicas_error"):
+            st.warning("⚠️ El Apps Script de Google Sheets todavía no tiene la pestaña 'practicas', "
+                       "así que los datos de las prácticas no se están guardando y el modelo no se "
+                       "puede actualizar. Pega el código nuevo del Apps Script y publícalo como "
+                       f"'Nueva versión'. (Detalle: {st.session_state['practicas_error']})")
         if tp.empty:
-            st.write("Aún no hay prácticas con datos registrados.")
+            st.write("Aún no hay prácticas con datos registrados. Las prácticas subidas antes de "
+                     "activar esta función no tienen datos guardados: vuelve a subirlas si quieres "
+                     "que alimenten el modelo.")
         else:
             st.dataframe(tp.drop(columns="_idx"), hide_index=True, width="stretch")
             aprob = tp[tp["Estado"].isin(["Aprobado", "Excluida"])]
