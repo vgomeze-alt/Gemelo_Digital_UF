@@ -187,6 +187,11 @@ COLUMNAS_REGISTRO = ["nombre", "correo", "tipo_practica", "archivo", "tamano_kb"
 EVAL_PATH = "evaluaciones.csv"
 COLUMNAS_EVAL = ["fecha", "nombre", "correo", "grupo", "nota", "correctas", "total", "tiempo_min", "codigo"]
 
+# Datos de cada práctica subida (para que el modelo aprenda de las aprobadas).
+# Pestaña "practicas" de la misma hoja de Google Sheets.
+PRACTICAS_PATH = "practicas.csv"
+COLUMNAS_PRACTICA = ["fecha", "nombre", "correo", "vuelta", "temperatura", "alertas", "datos", "estado"]
+
 
 def _config_gsheets():
     """Devuelve (url_script, token) o None si no está configurado."""
@@ -240,7 +245,8 @@ def cargar_registros():
         return pd.DataFrame(columns=COLUMNAS_REGISTRO)
 
 
-def guardar_nuevo_registro(nombre, correo, tipo_practica, archivo_nombre, tamano_bytes, observaciones=""):
+def guardar_nuevo_registro(nombre, correo, tipo_practica, archivo_nombre, tamano_bytes, observaciones="",
+                           fecha=None):
     """Agrega una fila nueva con estado 'Pendiente'."""
     nueva_fila = {
         "nombre": nombre,
@@ -248,7 +254,7 @@ def guardar_nuevo_registro(nombre, correo, tipo_practica, archivo_nombre, tamano
         "tipo_practica": tipo_practica,
         "archivo": archivo_nombre,
         "tamano_kb": round(tamano_bytes / 1024, 1),
-        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "fecha": fecha or datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "estado": "Pendiente",
         "observaciones": observaciones,
     }
@@ -270,6 +276,55 @@ def actualizar_estado_registro(indice, nuevo_estado):
         df.loc[indice, "estado"] = nuevo_estado
         df.to_csv(REGISTRO_PATH, index=False)
     cargar_registros.clear()
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def cargar_practicas():
+    """DataFrame con los datos de las prácticas subidas (pestaña 'practicas')."""
+    if _config_gsheets():
+        try:
+            filas = _llamar_script("GET", hoja="practicas")["filas"]
+        except RuntimeError:
+            # Apps Script sin la pestaña 'practicas' (versión anterior del script)
+            return pd.DataFrame(columns=COLUMNAS_PRACTICA)
+        return pd.DataFrame(filas, columns=COLUMNAS_PRACTICA)
+    try:
+        return pd.read_csv(PRACTICAS_PATH, dtype=str)
+    except FileNotFoundError:
+        return pd.DataFrame(columns=COLUMNAS_PRACTICA)
+
+
+def guardar_practica(fila):
+    fila = {c: fila.get(c, "") for c in COLUMNAS_PRACTICA}
+    if _config_gsheets():
+        _llamar_script("POST", hoja="practicas", accion="agregar", fila=fila)
+    else:
+        df = cargar_practicas()
+        df = pd.concat([df, pd.DataFrame([fila])], ignore_index=True)
+        df.to_csv(PRACTICAS_PATH, index=False)
+    cargar_practicas.clear()
+
+
+def actualizar_estado_practica(indice, nuevo_estado):
+    if _config_gsheets():
+        _llamar_script("POST", hoja="practicas", accion="estado", indice=int(indice), estado=nuevo_estado)
+    else:
+        df = cargar_practicas()
+        df.loc[indice, "estado"] = nuevo_estado
+        df.to_csv(PRACTICAS_PATH, index=False)
+    cargar_practicas.clear()
+
+
+def sincronizar_practica(fecha, nuevo_estado):
+    """Cuando el profesor aprueba o rechaza un registro, la práctica asociada
+    (misma fecha de carga) toma el mismo estado."""
+    try:
+        df = cargar_practicas()
+        coinc = df.index[df["fecha"].astype(str) == str(fecha)]
+        for i in coinc:
+            actualizar_estado_practica(i, nuevo_estado)
+    except Exception:
+        pass
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -783,7 +838,7 @@ def simulacion():
     )
     if modo.startswith("Vueltas"):
         from simulacion_vueltas import pagina_vueltas
-        pagina_vueltas(PARAMS)
+        pagina_vueltas(PARAMS, cargar_practicas)
         return
     if modo.startswith("Presión"):
         from simulacion_presion import pagina_presion
@@ -890,6 +945,25 @@ def simulacion():
                          "Exponencial empírico — recomendado para proyectar tiempos largos"],
             )
 
+            # ¿Hay prácticas aprobadas de la vuelta 2? → opción de modelo actualizado
+            params_sim = {"K": PARAMS["K"], "J0": PARAMS["J0_torta"], "Kc": PARAMS["Kc_torta"]}
+            try:
+                from modelo_actualizado import parametros_base, practicas_validas
+                _base = parametros_base(practicas_validas(cargar_practicas()))
+            except Exception:
+                _base = {"n_practicas": 0}
+            if _base["n_practicas"]:
+                fuente = st.radio(
+                    "Parámetros del modelo",
+                    ["Tesis (3 réplicas)",
+                     f"🧠 Actualizado (tesis + {_base['n_practicas']} práctica(s) aprobada(s))"],
+                    help="El modelo actualizado promedia por corrida los parámetros de la tesis y "
+                         "de las prácticas de la vuelta 2 aprobadas por el profesor.")
+                if fuente.startswith("🧠"):
+                    params_sim = {"K": _base["K"], "J0": _base["J0"], "Kc": _base["Kc"]}
+                    st.caption(f"K = {_base['K']:.5f} · J₀ = {_base['J0']:.2f} L/m²·h · "
+                               f"Kc = {_base['Kc']:.3e} (modelo exponencial sin cambios)")
+
             fuera_rango = (t_final > PARAMS["t_max_valido"]) or (
                 abs(C0 - PARAMS["C0_valido"]) / PARAMS["C0_valido"] > 0.30)
 
@@ -919,9 +993,9 @@ def simulacion():
                 J_t = modelo_J_agua(t)
             C_t = None
         else:
-            C_t = modelo_C(t, C0)
+            C_t = modelo_C(t, C0, K=params_sim["K"])
             if modelo_flux.startswith("Hermia"):
-                J_t = modelo_J_torta(t)
+                J_t = modelo_J_torta(t, J0=params_sim["J0"], Kc=params_sim["Kc"])
             else:
                 J_t = modelo_J_exp(t)
 
@@ -1453,8 +1527,10 @@ def datos():
                        "revisión por el profesor; recibirás un correo cuando sea aprobado "
                        "o rechazado.")
 
+            fecha_carga = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             try:
                 guardar_nuevo_registro(
+                    fecha=fecha_carga,
                     nombre=nombre_usuario.strip(),
                     correo=correo_usuario.strip(),
                     tipo_practica=practica,
@@ -1466,6 +1542,21 @@ def datos():
                 )
             except Exception as e:
                 st.session_state.aviso_registro = f"No se pudo guardar el registro en Google Sheets: {e}"
+            if resultado_analisis and resultado_analisis.get("datos"):
+                try:
+                    v_ = resultado_analisis["vuelta"]
+                    guardar_practica({
+                        "fecha": fecha_carga, "nombre": nombre_usuario.strip(),
+                        "correo": correo_usuario.strip(),
+                        "vuelta": "" if v_ is None or v_ != v_ else int(v_),
+                        "temperatura": "" if resultado_analisis["temperatura"] != resultado_analisis["temperatura"]
+                                       else resultado_analisis["temperatura"],
+                        "alertas": resultado_analisis["alertas"],
+                        "datos": resultado_analisis["datos"], "estado": "Pendiente"})
+                except Exception as e:
+                    st.session_state.aviso_registro = (
+                        "El registro se guardó, pero no los datos para el modelo. Revisa que el "
+                        f"Apps Script esté actualizado con la pestaña 'practicas'. ({e})")
 
             enviado, error = enviar_notificacion_carga(
                 nombre_usuario=nombre_usuario.strip(),
@@ -1576,6 +1667,7 @@ def datos():
                     with col_aprobar:
                         if st.button("✅ Aprobar", key=f"aprobar_{indice}"):
                             actualizar_estado_registro(indice, "Aprobado")
+                            sincronizar_practica(fila["fecha"], "Aprobado")
                             enviado, error = enviar_notificacion_decision(
                                 correo_destino=fila["correo"],
                                 nombre_usuario=fila["nombre"],
@@ -1588,6 +1680,7 @@ def datos():
                     with col_rechazar:
                         if st.button("❌ Rechazar", key=f"rechazar_{indice}"):
                             actualizar_estado_registro(indice, "Rechazado")
+                            sincronizar_practica(fila["fecha"], "Rechazado")
                             enviado, error = enviar_notificacion_decision(
                                 correo_destino=fila["correo"],
                                 nombre_usuario=fila["nombre"],
@@ -1597,6 +1690,33 @@ def datos():
                             if not enviado:
                                 st.caption(f"(No se pudo avisar por correo: {error})")
                             st.rerun()
+
+        # ---------------------------------------------------------------
+        # Prácticas que alimentan el modelo del gemelo digital
+        # ---------------------------------------------------------------
+        st.markdown("#### 🧠 Prácticas que alimentan el modelo")
+        st.caption("Las prácticas aprobadas y sin alertas graves actualizan el modelo (vuelta 2) y "
+                   "calibran la válvula roja (otras vueltas). Puedes excluir una sin rechazarla.")
+        from modelo_actualizado import tabla_practicas
+        tp = tabla_practicas(cargar_practicas())
+        if tp.empty:
+            st.write("Aún no hay prácticas con datos registrados.")
+        else:
+            st.dataframe(tp.drop(columns="_idx"), hide_index=True, width="stretch")
+            aprob = tp[tp["Estado"].isin(["Aprobado", "Excluida"])]
+            if not aprob.empty:
+                c1, c2 = st.columns([3, 1])
+                eleg = c1.selectbox("Práctica", aprob["_idx"],
+                                    format_func=lambda i: f"{tp.loc[tp['_idx'] == i, 'Fecha'].iloc[0]} — "
+                                                          f"{tp.loc[tp['_idx'] == i, 'Grupo'].iloc[0]} "
+                                                          f"(vuelta {tp.loc[tp['_idx'] == i, 'Vuelta'].iloc[0]}, "
+                                                          f"{tp.loc[tp['_idx'] == i, 'Estado'].iloc[0]})")
+                actual = tp.loc[tp["_idx"] == eleg, "Estado"].iloc[0]
+                nuevo = "Excluida" if actual == "Aprobado" else "Aprobado"
+                if c2.button("Excluir del modelo" if actual == "Aprobado" else "Incluir en el modelo",
+                             width="stretch"):
+                    actualizar_estado_practica(eleg, nuevo)
+                    st.rerun()
 
 
 def encuesta():

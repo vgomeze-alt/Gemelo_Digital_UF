@@ -31,6 +31,7 @@ import pandas as pd
 import streamlit as st
 
 import simulacion_presion as sp
+from modelo_actualizado import muestrear_valvula, parametros_base, practicas_validas, puntos_valvula
 
 VUELTAS = np.arange(0, 10)
 Q_ALIM = 6.0  # L/min, caudal de alimentación de la práctica (rotámetro)
@@ -40,31 +41,39 @@ J_CAP = 0.9 * Q_ALIM * 60 / 4.8
 
 
 @st.cache_data(show_spinner=False)
-def correr_vueltas(J_agua, C0, t_final, T, n_mc, semilla, n_med, r_med, p_cierre_med, s_med):
+def correr_vueltas(J_agua, C0, t_final, T, n_mc, semilla, n_med, r_med, p_cierre_med, s_med,
+                   pts=(), base=None):
     rng = np.random.default_rng(semilla)
     R_M = sp.DP_REF / (sp.MU_AGUA_REF * sp._a_si(J_agua))
     t = np.linspace(0, t_final, 81)
 
     # ---- incertidumbre del modelo (vuelta 2)
-    pars = rng.multivariate_normal(sp.HERMIA_MEDIA, sp.HERMIA_COV, size=n_mc)
+    media = sp.HERMIA_MEDIA if base is None else np.array([base[0], base[1]])
+    pars = rng.multivariate_normal(media, sp.HERMIA_COV, size=n_mc)
     J0 = np.clip(pars[:, 0], 10, 35)[:, None]
     Kc = np.clip(pars[:, 1], 2e-5, None)[:, None]
-    K = np.clip(rng.normal(sp.K_MEDIA, sp.K_SD, n_mc), 1e-4, None)[:, None]
+    K = np.clip(rng.normal(sp.K_MEDIA if base is None else base[2], sp.K_SD, n_mc), 1e-4, None)[:, None]
     corrida = np.clip(rng.normal(1.0, sp.CV_CORRIDAS, n_mc), 0.5, 1.5)[:, None]
     s = np.clip(rng.normal(s_med, 0.1, n_mc), 0.0, 1.0)[:, None]
     T_mc = rng.normal(T, 1.0, n_mc)[:, None]
 
     # ---- incertidumbre de la válvula
-    n = np.clip(rng.normal(n_med, 0.25, n_mc), 0.4, 2.5)[:, None]
-    r = np.clip(rng.lognormal(np.log(r_med), 0.35, n_mc), 0.02, 0.4)[:, None]
     p_cierre = rng.uniform(p_cierre_med - 1.0, p_cierre_med + 1.0, n_mc)[:, None] * sp.BAR_A_PA
+    P_ancla = sp.DP_REF
+    if pts:
+        # Válvula calibrada con las prácticas aprobadas (posterior bayesiana)
+        r, n, P_ancla_psi, _ = muestrear_valvula(rng, n_mc, list(pts))
+        P_ancla = P_ancla_psi * sp.PSI_A_PA
+    else:
+        n = np.clip(rng.normal(n_med, 0.25, n_mc), 0.4, 2.5)[:, None]
+        r = np.clip(rng.lognormal(np.log(r_med), 0.35, n_mc), 0.02, 0.4)[:, None]
 
     def cv(v):
         return r + (1 - r) * (v / 9.0) ** n
 
-    dP = sp.DP_REF * (cv(2.0) / cv(VUELTAS[None, :].astype(float))) ** 2      # (N, 10)
+    dP = P_ancla * (cv(2.0) / cv(VUELTAS[None, :].astype(float))) ** 2       # (N, 10)
     dP = np.minimum(dP, p_cierre)
-    dP[:, 2] = sp.DP_REF * (1 + rng.normal(0, 0.05, n_mc))                   # anclada a 11 psi
+    dP[:, 2] = P_ancla * (1 + rng.normal(0, 0.05, n_mc))                     # anclada a la vuelta 2
 
     J = np.empty((n_mc, len(VUELTAS), len(t)))
     C = np.empty_like(J)
@@ -87,7 +96,7 @@ def _pct(x, q, axis=0):
     return np.nanpercentile(x, q, axis=axis)
 
 
-def pagina_vueltas(PARAMS):
+def pagina_vueltas(PARAMS, cargar_practicas=None):
     import matplotlib.pyplot as plt
 
     st.markdown(
@@ -96,11 +105,27 @@ def pagina_vueltas(PARAMS):
         "vueltas con un modelo físico de la válvula y cientos de simulaciones (Montecarlo)."
     )
     st.warning(
-        "🧪 **Solo la vuelta 2 tiene datos experimentales.** Las demás vueltas son "
+        "🧪 **La vuelta 2 tiene datos experimentales completos.** Las demás vueltas son "
         "**estimaciones** basadas en supuestos físicos (ver abajo): sirven para entender "
         "tendencias y riesgos, no como datos validados. La banda de incertidumbre crece al "
         "alejarse de la vuelta 2."
     )
+
+    practicas = []
+    if cargar_practicas is not None:
+        try:
+            practicas = practicas_validas(cargar_practicas())
+        except Exception:
+            practicas = []
+    pts = tuple(puntos_valvula(practicas))
+    base = parametros_base(practicas)
+    vueltas_con_datos = sorted({2} | {v for v, *_ in pts})
+    if practicas:
+        otras = sorted({v for v, *_ in pts if v != 2})
+        st.info(f"🧠 **El modelo aprendió de {len(practicas)} práctica(s) aprobada(s).** "
+                f"Vuelta 2: {base['n_corridas']} corridas (tesis + {base['n_practicas']} prácticas)."
+                + (f" Válvula calibrada con presiones medidas en las vueltas {', '.join(map(str, otras))}."
+                   if otras else " Aún no hay prácticas en otras vueltas para calibrar la válvula."))
 
     col_in, col_out = st.columns([1, 2.2])
     with col_in:
@@ -126,7 +151,8 @@ def pagina_vueltas(PARAMS):
     # se refleja de inmediato en las gráficas.
     entradas = (float(PARAMS["J_agua"]), C0, t_final, T, n_mc, int(semilla),
                 n_med, r_med, p_cierre, s_med)
-    r = correr_vueltas(*entradas)
+    r = correr_vueltas(*entradas, pts=pts,
+                       base=(base["J0"], base["Kc"], base["K"]) if base["n_practicas"] else None)
     t, J, C, dP, frac, Vp = r["t"], r["J"], r["C"], r["dP"], r["frac"], r["Vp"]
     pmax = sp.P_MAX_FICHA_BAR
 
@@ -153,7 +179,7 @@ def pagina_vueltas(PARAMS):
                    f"(~{p50[mejor]:.1f} L/m²·h a {entradas[2]} min). La vuelta 2 (datos) da "
                    f"~{p50[2]:.1f} L/m²·h.")
 
-        colores = ["#2e7d32" if v == 2 else "#e08a00" for v in VUELTAS]
+        colores = ["#2e7d32" if v in vueltas_con_datos else "#e08a00" for v in VUELTAS]
 
         fig, axs = plt.subplots(1, 2, figsize=(10, 3.6))
         ax = axs[0]
@@ -162,6 +188,8 @@ def pagina_vueltas(PARAMS):
         ax.plot(VUELTAS, me, color="#1f4e78", lw=2)
         ax.scatter(VUELTAS, me, c=colores, zorder=5, s=45)
         ax.axhline(pmax, color="red", lw=1.5); ax.text(9, pmax, " máx.", color="red", va="bottom", ha="right", fontsize=8)
+        for v_, P_, _, _ in pts:
+            ax.scatter([v_], [P_ * sp.PSI_A_PA / sp.BAR_A_PA], marker="x", s=70, color="black", zorder=6)
         ax.set_xlabel("Vuelta de la válvula roja"); ax.set_ylabel("Presión en el módulo (bar)")
         ax.set_title("¿Qué presión genera cada vuelta?"); ax.set_xticks(VUELTAS); ax.grid(alpha=0.3)
         ax = axs[1]
@@ -169,10 +197,13 @@ def pagina_vueltas(PARAMS):
         ax.fill_between(VUELTAS, lo, hi, color="#c00000", alpha=0.18)
         ax.plot(VUELTAS, me, color="#c00000", lw=2)
         ax.scatter(VUELTAS, me, c=colores, zorder=5, s=45)
+        for v_, _, Jf_, tf_ in pts:
+            if np.isfinite(Jf_) and abs(tf_ - entradas[2]) <= 5:
+                ax.scatter([v_], [Jf_], marker="x", s=70, color="black", zorder=6)
         ax.set_xlabel("Vuelta de la válvula roja"); ax.set_ylabel(f"Flux a {entradas[2]} min (L/m² h)")
         ax.set_title("Flux final según la vuelta"); ax.set_xticks(VUELTAS); ax.grid(alpha=0.3)
         fig.tight_layout(); st.pyplot(fig); plt.close(fig)
-        st.caption("🟢 vuelta 2: datos experimentales · 🟠 demás vueltas: estimaciones. "
+        st.caption("🟢 vueltas con datos experimentales · 🟠 estimaciones · ✕ prácticas aprobadas. "
                    "Bandas: 90 % de las simulaciones.")
 
         fig, axs = plt.subplots(1, 2, figsize=(10, 3.6))
@@ -218,7 +249,9 @@ def pagina_vueltas(PARAMS):
 
         tabla = pd.DataFrame({
             "Vuelta": VUELTAS,
-            "Origen": ["Datos (3 réplicas)" if x == 2 else "Estimada" for x in VUELTAS],
+            "Origen": [("Datos (3 réplicas)" + (f" + {base['n_practicas']} prácticas" if base["n_practicas"] else "")
+                        if x == 2 else (f"Calibrada ({sum(1 for v_, *_ in pts if v_ == x)} práctica(s))"
+                                        if x in vueltas_con_datos else "Estimada")) for x in VUELTAS],
             "Presión (bar)": _pct(dP_bar, 50).round(2),
             f"Flux {entradas[2]} min (L/m²·h)": _pct(Jf, 50).round(1),
             "Flux P5–P95": [f"{a:.1f}–{b:.1f}" for a, b in zip(_pct(Jf, 5), _pct(Jf, 95))],
@@ -256,7 +289,10 @@ usan la caracterización con agua ni los ensayos de otras vueltas.
 la compresibilidad de la torta, la temperatura, y los parámetros de la válvula ($r$, $n$, presión de
 cierre). La vuelta 2 queda anclada a 11 psi; por eso su banda es la más estrecha.
 
-**Cómo validarlo:** una corrida corta (10–15 min) en 2 o 3 vueltas distintas, anotando la presión de
-entrada y el peso de permeado, basta para calibrar la curva de la válvula y convertir estas
-estimaciones en datos.
+**El modelo aprende de las prácticas:** cada práctica que el profesor aprueba (sin alertas graves)
+se suma automáticamente. Las de la vuelta 2 actualizan $J_0$, $K_c$ y $K$ (promedio por corrida con la
+tesis); las de otras vueltas aportan su presión de entrada medida, que corrige la curva de la válvula
+combinando el supuesto inicial con los datos (calibración bayesiana). En las gráficas aparecen como ✕
+y la banda se estrecha a medida que hay más prácticas. Basta con una corrida corta (10–15 min) en
+otras vueltas, anotando la presión de entrada y el peso de permeado en la plantilla.
 """)

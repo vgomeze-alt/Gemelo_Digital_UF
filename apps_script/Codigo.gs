@@ -14,6 +14,8 @@ const HOJAS = {
                  "fecha", "estado", "observaciones"],
   evaluaciones: ["fecha", "nombre", "correo", "grupo", "nota", "correctas",
                  "total", "tiempo_min", "codigo"],
+  practicas:    ["fecha", "nombre", "correo", "vuelta", "temperatura", "alertas",
+                 "datos", "estado"],
 };
 
 function hoja_(nombre) {
@@ -57,7 +59,7 @@ function doPost(e) {
     const hoja = hoja_(nombre);
     if (p.accion === "agregar") {
       hoja.appendRow(COLUMNAS.map(c => "'" + String(p.fila[c] ?? "")));
-    } else if (p.accion === "estado" && nombre === "registros") {
+    } else if (p.accion === "estado" && COLUMNAS.indexOf("estado") >= 0) {
       // fila 1 = encabezados, así que el registro con índice i está en la fila i + 2
       hoja.getRange(Number(p.indice) + 2, COLUMNAS.indexOf("estado") + 1).setValue(p.estado);
     } else {
