@@ -422,7 +422,7 @@ def _numericas(rng, PARAMS, modelo_C, modelo_J_torta, modelo_J_exp):
                 "correcta": (1 - Cp / Cf) * 100, "unidad": "%", "tol_abs": 0.5}
 
     tipos = [conc, hermia, exponencial, tiempo, flux_medido, rechazo]
-    return [dict(f(), tipo="numero", origen="Simulación / Guía de Usuario")
+    return [dict(f(), tipo="numero", origen="Simulación / Guía de Usuario", tema="Cálculo")
             for f in rng.sample(tipos, N_NUMERICAS)]
 
 
@@ -441,7 +441,7 @@ def _generar_examen(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp):
         opciones = [correcta] + list(distractores)
         rng.shuffle(opciones)
         preguntas.append({"tipo": "opcion", "texto": preg, "opciones": opciones,
-                          "correcta": correcta, "origen": origen})
+                          "correcta": correcta, "origen": origen, "tema": tema})
     return preguntas + _numericas(rng, PARAMS, modelo_C, modelo_J_torta, modelo_J_exp)
 
 
@@ -453,6 +453,16 @@ def _es_correcta(p, respuesta):
     if "tol_abs" in p:
         return abs(respuesta - p["correcta"]) <= p["tol_abs"]
     return abs(respuesta - p["correcta"]) <= 0.03 * abs(p["correcta"])  # tolerancia ±3 %
+
+
+def _resumen_temas(preguntas, respuestas):
+    """'Conceptos:2/2; Modelos:1/2; …' para el análisis por tema del panel del profesor."""
+    cuenta = {}
+    for p, r in zip(preguntas, respuestas):
+        c = cuenta.setdefault(p.get("tema", "Otro"), [0, 0])
+        c[0] += int(_es_correcta(p, r))
+        c[1] += 1
+    return "; ".join(f"{t}:{a}/{n}" for t, (a, n) in cuenta.items())
 
 
 def _codigo_verificacion(nombre, correo, nota, fecha, secreto):
@@ -609,6 +619,7 @@ def _seccion_evaluacion(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp, guardar_
                 "grupo": ev["grupo"], "nota": nota, "correctas": correctas, "total": total,
                 "tiempo_min": max(1, round((time.time() - ev["inicio"]) / 60)),
                 "codigo": _codigo_verificacion(ev["nombre"], ev["correo"], nota, fecha, secreto),
+                "temas": _resumen_temas(ev["preguntas"], respuestas),
             }
             try:
                 guardar_evaluacion(resultado)
@@ -663,50 +674,6 @@ def _seccion_evaluacion(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp, guardar_
         st.rerun()
 
 
-def _panel_profesor(cargar_evaluaciones):
-    with st.expander("👩‍🏫 Para el profesor: ver resultados de las evaluaciones"):
-        # Contraseña propia de los profesores que manejan el equipo, distinta de la
-        # de administrador [admin] que aprueba/rechaza prácticas en "Sube tus Datos".
-        # En los Secrets:
-        # [profesores]
-        # password = "..."
-        if not st.session_state.get("autenticado_profesor"):
-            clave = st.text_input("Contraseña de profesores", type="password", key="clave_prof_eval")
-            if st.button("Ingresar", key="btn_prof_eval"):
-                try:
-                    correcta = st.secrets["profesores"]["password"]
-                except Exception:
-                    st.error("No se ha configurado la contraseña de profesores. Agrega una "
-                             "sección [profesores] con 'password' en los Secrets.")
-                    return
-                if clave == correcta:
-                    st.session_state.autenticado_profesor = True
-                    st.rerun()
-                else:
-                    st.error("Contraseña incorrecta.")
-            return
-        try:
-            df = cargar_evaluaciones()
-        except Exception as e:
-            st.error(f"No se pudieron cargar las evaluaciones: {e}")
-            return
-        if df.empty:
-            st.write("Todavía no hay evaluaciones registradas.")
-            return
-        codigo = st.text_input("Verificar un código de constancia", key="buscar_codigo").strip().upper()
-        if codigo:
-            hallado = df[df["codigo"].astype(str).str.upper() == codigo]
-            if hallado.empty:
-                st.error("Ese código no aparece en el registro.")
-            else:
-                st.success("Código válido ✅")
-                st.dataframe(hallado, hide_index=True, width="stretch")
-        st.dataframe(df.sort_values("fecha", ascending=False), hide_index=True, width="stretch")
-        st.download_button("📥 Descargar todas las evaluaciones (CSV)",
-                           data=df.to_csv(index=False).encode("utf-8"),
-                           file_name="evaluaciones_gemelo_uf.csv", mime="text/csv")
-
-
 # =============================================================================
 # PÁGINA
 # =============================================================================
@@ -737,5 +704,5 @@ def pagina_aprende(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp,
         _seccion_reto(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp)
     with tab3:
         _seccion_evaluacion(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp, guardar_evaluacion)
-        st.divider()
-        _panel_profesor(cargar_evaluaciones)
+        st.caption("👩‍🏫 Profesores: los resultados y la verificación de constancias están en "
+                   "**📊 Panel del profesor** (menú lateral).")

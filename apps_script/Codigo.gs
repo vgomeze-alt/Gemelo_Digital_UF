@@ -13,7 +13,7 @@ const HOJAS = {
   registros:    ["nombre", "correo", "tipo_practica", "archivo", "tamano_kb",
                  "fecha", "estado", "observaciones"],
   evaluaciones: ["fecha", "nombre", "correo", "grupo", "nota", "correctas",
-                 "total", "tiempo_min", "codigo"],
+                 "total", "tiempo_min", "codigo", "temas"],
   practicas:    ["fecha", "nombre", "correo", "vuelta", "temperatura", "alertas",
                  "datos", "estado"],
   pre_post:     ["fecha", "tipo", "nombre", "correo", "grupo", "correctas",
