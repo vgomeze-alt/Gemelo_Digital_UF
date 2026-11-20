@@ -184,14 +184,16 @@ barril("tanquePermeado", 1.18, 0.85, 0.19, 0.58, -1);
 const caneca = grupo("canecaResiduos");                             // residuos del químico
 const canCuerpo = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.085, 0.3, 20),
   new THREE.MeshPhongMaterial({ color: 0xc02a24 }));
-canCuerpo.position.set(0.05, 0.15, 1.22);
+canCuerpo.position.set(0.05, 0.2, 1.22);
 caneca.add(canCuerpo);
-cil(caneca, 0.095, 0.015, M.negro, 0.05, 0.3, 1.22);
+caja(caneca, 0.3, 0.05, 0.3, M.acero, 0.05, 0.025, 1.22);          // báscula
+caja(caneca, 0.1, 0.04, 0.025, M.negro, 0.05, 0.06, 1.385);         // indicador
+cil(caneca, 0.095, 0.015, M.negro, 0.05, 0.355, 1.22);
 registrar(caneca);
 
 // ------------------------------------------------------------- otros
 const vRoja = grupo("valvulaRoja");
-cil(vRoja, 0.06, 0.028, M.rojo, 0.25, 0.95, -0.4, "x");
+const volanteRojo = cil(vRoja, 0.06, 0.028, M.rojo.clone(), 0.25, 0.95, -0.4, "x");
 cil(vRoja, 0.012, 0.1, M.aceroOsc, 0.25, 0.95, -0.35, "x");
 registrar(vRoja);
 
@@ -231,8 +233,8 @@ tubo("entradaAgua", C.ent, [
   [-0.52, 0.6, 0.06], [-0.52, 1.2, 0.02], [-0.3, 1.12, 0.1], [0.3, 0.6, 0.12],
   [0.75, 0.5, 0.08], [0.9, 0.52, 0.03]]);
 tubo("rechazoTanque", C.rec, [
-  [1.0, 1.56, 0], [0.8, 1.7, -0.2], [0.1, 1.52, -0.38], [-0.6, 1.2, -0.05],
-  [-0.85, 0.95, 0.6], [-0.66, 0.8, 0.78]]);
+  [1.0, 1.56, 0], [0.85, 1.35, -0.3], [0.45, 1.0, -0.42], [0.25, 0.95, -0.43],
+  [-0.2, 1.05, -0.32], [-0.7, 1.05, 0.2], [-0.85, 0.95, 0.6], [-0.66, 0.8, 0.78]]);
 tubo("rechazoDrenaje", C.rec, [
   [1.0, 1.56, 0], [1.12, 1.2, 0.2], [0.85, 0.6, 0.7], [0.5, 0.15, 1.18]]);
 tubo("permeadoTanque", C.per, [
@@ -246,8 +248,8 @@ tubo("quimicoEntrada", C.lav, [
   [-0.68, 0.22, 0.8], [-0.62, 0.12, 0.7], [-0.52, 0.1, 0.62], [-0.44, 0.3, 0.4],
   [-0.52, 0.6, 0.06], [-0.52, 1.2, 0.02], [-0.3, 1.12, 0.1], [0.3, 0.6, 0.12],
   [0.75, 0.5, 0.08], [0.9, 0.52, 0.03]]);
-tubo("quimicoCaneca", C.lav, [
-  [1.0, 1.56, 0], [1.08, 1.1, 0.35], [0.7, 0.5, 0.9], [0.07, 0.34, 1.21]]);
+tubo("permeadoCaneca", C.per, [
+  [0.95, 1.75, 0], [0.85, 1.65, 0.3], [0.55, 0.9, 0.95], [0.07, 0.4, 1.22]]);
 tubo("aireLinea", C.aire, [
   [0.72, 1.05, -0.13], [0.8, 0.8, -0.1], [0.88, 0.58, -0.04]], 0.01);
 
@@ -533,8 +535,8 @@ const RUTAS = {
   off: [],
   uf: ["entradaLactosuero", "rechazoTanque", "permeadoTanque"],
   lavR: ["entradaAgua", "rechazoDrenaje"],
-  lavP: ["entradaAgua", "permeadoDrenaje"],
-  quim: ["quimicoEntrada", "quimicoCaneca"],
+  lavP: ["entradaAgua", "permeadoCaneca"],
+  quim: ["quimicoEntrada", "rechazoTanque"],
   retro: ["lavado", "aireLinea", "rechazoDrenaje"],
 };
 let cicloActual = "off";
@@ -552,6 +554,8 @@ function aplicarCiclo(c) {
     p.material.emissive.setHex(abiertas.includes(i + 1) ? 0xff9500 : 0x3a2400);
     p.material.color.setHex(abiertas.includes(i + 1) ? 0xffc04d : 0xf0a01a);
   });
+  const regula = c === "uf" || c === "quim";
+  volanteRojo.material.emissive.setHex(regula ? 0x661010 : 0x000000);
   const andando = c !== "off";
   pilotoBomba.material.emissive.setHex(andando ? 0xff9500 : 0x3a2400);
   pilotoBomba.material.color.setHex(andando ? 0xffc04d : 0xf0a01a);

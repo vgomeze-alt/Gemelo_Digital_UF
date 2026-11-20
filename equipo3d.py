@@ -91,11 +91,12 @@ COMPONENTES = {
         "fuente": "P&ID (tabla VAL) · Manual (ciclos)",
     },
     "valvulaRoja": {
-        "nombre": "Válvula reguladora roja (relación permeado/rechazo)",
-        "desc": ("Válvula tipo mariposa en la parte trasera, con recorrido de 9 "
-                 "vueltas. Fija la relación permeado/rechazo; la práctica se opera en "
-                 "la vuelta 2 (posición estándar). Fue caracterizada vuelta a vuelta "
-                 "en los ensayos preliminares."),
+        "nombre": "Válvula reguladora roja V9 (retorno del rechazo)",
+        "desc": ("Válvula trasera de 9 vueltas. Durante la ultrafiltración es la ÚNICA "
+                 "que regula el caudal del rechazo que regresa al tanque de "
+                 "alimentación (la V3 permanece cerrada) y con él la relación entre "
+                 "permeado y rechazo. La práctica se opera en la vuelta 2. Se ilumina "
+                 "cuando está regulando el retorno."),
         "fuente": "Manual (componente 10) · Tesis (caracterización)",
     },
     "bombaLavado": {
@@ -122,17 +123,17 @@ COMPONENTES = {
         "fuente": "Manual (componentes 8 y 9) · fotos",
     },
     "canecaResiduos": {
-        "nombre": "Caneca de residuos de la limpieza química",
-        "desc": ("Recipiente aparte donde se recoge la solución de NaOH usada: el "
-                 "químico no se envía al drenaje, se recoge aquí y luego se desecha "
-                 "en el punto indicado por el laboratorio."),
+        "nombre": "Caneca externa (sobre báscula)",
+        "desc": ("Balde externo sobre una báscula. Recibe la descarga de la manguera "
+                 "delgada de permeado durante el enjuague de esa línea (V1+V4) tras la "
+                 "limpieza química; ese líquido no se envía al drenaje y se desecha "
+                 "luego en el punto indicado por el laboratorio."),
         "fuente": "Aclaración del laboratorio",
     },
     "drenaje": {
         "nombre": "Drenaje",
-        "desc": ("Salida al desagüe usada en los lavados y purgas CON AGUA. La "
-                 "solución química usada no va aquí: se recoge en la caneca de "
-                 "residuos."),
+        "desc": ("Salida de la manguera gruesa de rechazo durante el barrido de esa "
+                 "línea (V1+V3) o al vaciar el tanque."),
         "fuente": "P&ID · Manual (purgas) · aclaración del laboratorio",
     },
     "tomaAgua": {
@@ -146,13 +147,13 @@ COMPONENTES = {
 CICLOS = {
     "off": {"etiqueta": "⏹ Detenido", "valvulas": [], "detalle": "Equipo apagado. Haz clic en los componentes para conocerlos."},
     "uf": {"etiqueta": "🥛 Operación con lactosuero (V1+V2)", "valvulas": [1, 2],
-           "detalle": "La mezcla sale por ABAJO del tanque hacia la bomba y el equipo. Por ARRIBA del tanque regresa el rechazo (rojo, manguera gruesa, con la proteína) y el permeado (azul, manguera delgada) va al otro tanque, sobre su báscula."},
+           "detalle": "Solo V1 y V2 abiertas (V3 cerrada). La mezcla sale por ABAJO del tanque hacia la bomba y el equipo. El rechazo (rojo, manguera gruesa) regresa por ARRIBA al mismo tanque en lazo cerrado, regulado únicamente por la válvula roja V9 (vuelta 2). El permeado (azul, manguera delgada) va al otro tanque, sobre su báscula."},
+    "quim": {"etiqueta": "🧪 Recirculación de NaOH (limpieza química)", "valvulas": [1],
+             "detalle": "Se prepara ~1 kg de soda cáustica en 80 L de agua (NaOH ≈ 1 %) en el tanque de alimentación y se recircula por el equipo con la misma bomba del lactosuero, regresando al tanque. Activa 🔬 para ver cómo disuelve la torta. Después se enjuagan las líneas (V1+V3 y V1+V4)."},
     "lavR": {"etiqueta": "🚿 Lavado con agua: línea de rechazo (V1+V3)", "valvulas": [1, 3],
-             "detalle": "Agua de red por la línea de rechazo hacia el DRENAJE, 5–10 min hasta que salga clara (~30–33 µS/cm)."},
-    "lavP": {"etiqueta": "🚿 Lavado con agua: línea de permeado (V1+V4)", "valvulas": [1, 4],
-             "detalle": "Agua de red por la línea de permeado hacia el DRENAJE, para limpiar el interior de las fibras."},
-    "quim": {"etiqueta": "🧪 Limpieza química (NaOH) → caneca", "valvulas": [1, 3],
-             "detalle": "El NaOH al 1 % se prepara manualmente en el tanque azul desocupado y se bombea con la MISMA bomba del lactosuero hacia la membrana; la solución usada se recoge en la CANECA de residuos (no va al drenaje) para desecharla en el punto indicado. Activa 🔬 para ver cómo disuelve la torta."},
+             "detalle": "El flujo de lavado corre por la línea de rechazo y sale por la manguera gruesa (barrido de la línea o vaciado del tanque), 5–10 min hasta que salga clara (~30–33 µS/cm)."},
+    "lavP": {"etiqueta": "🚿 Enjuague línea de permeado (V1+V4) → caneca", "valvulas": [1, 4],
+             "detalle": "El flujo de lavado corre por la línea de permeado y sale por la manguera delgada, que descarga directamente en la caneca externa sobre la báscula."},
     "retro": {"etiqueta": "💨 Retrolavado + aire (V5)", "valvulas": [5],
               "detalle": "Agua del tanque azul (con NaOH agregado manualmente si es limpieza química), impulsada por la bomba de lavado en contraflujo, más aire comprimido: desprende la torta (cada 15–60 min, 30–60 s)."},
 }
