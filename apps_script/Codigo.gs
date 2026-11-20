@@ -16,6 +16,8 @@ const HOJAS = {
                  "total", "tiempo_min", "codigo"],
   practicas:    ["fecha", "nombre", "correo", "vuelta", "temperatura", "alertas",
                  "datos", "estado"],
+  pre_post:     ["fecha", "tipo", "nombre", "correo", "grupo", "correctas",
+                 "total", "porcentaje", "respuestas"],
 };
 
 function hoja_(nombre) {
