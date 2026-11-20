@@ -192,6 +192,10 @@ COLUMNAS_EVAL = ["fecha", "nombre", "correo", "grupo", "nota", "correctas", "tot
 PRACTICAS_PATH = "practicas.csv"
 COLUMNAS_PRACTICA = ["fecha", "nombre", "correo", "vuelta", "temperatura", "alertas", "datos", "estado"]
 
+# Test de entrada / salida (pestaña 'pre_post')
+PREPOST_PATH = "pre_post.csv"
+from test_pre_post import COLUMNAS_PREPOST
+
 
 def _config_gsheets():
     """Devuelve (url_script, token) o None si no está configurado."""
@@ -351,6 +355,32 @@ def guardar_evaluacion(resultado):
         df = pd.concat([df, pd.DataFrame([fila])], ignore_index=True)
         df.to_csv(EVAL_PATH, index=False)
     cargar_evaluaciones.clear()
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def cargar_prepost():
+    """DataFrame con los tests de entrada y salida (pestaña 'pre_post')."""
+    if _config_gsheets():
+        filas = _llamar_script("GET", hoja="pre_post")["filas"]
+        return pd.DataFrame(filas, columns=COLUMNAS_PREPOST)
+    try:
+        return pd.read_csv(PREPOST_PATH, dtype=str)
+    except FileNotFoundError:
+        return pd.DataFrame(columns=COLUMNAS_PREPOST)
+
+
+def guardar_prepost(fila):
+    fila = {c: fila.get(c, "") for c in COLUMNAS_PREPOST}
+    if _config_gsheets():
+        _llamar_script("POST", hoja="pre_post", accion="agregar", fila=fila)
+    else:
+        try:
+            df = pd.read_csv(PREPOST_PATH, dtype=str)
+        except FileNotFoundError:
+            df = pd.DataFrame(columns=COLUMNAS_PREPOST)
+        df = pd.concat([df, pd.DataFrame([fila])], ignore_index=True)
+        df.to_csv(PREPOST_PATH, index=False)
+    cargar_prepost.clear()
 
 
 # =============================================================================
@@ -1591,6 +1621,13 @@ def datos():
     aviso = st.session_state.pop("aviso_carga", None)
     if aviso:
         (st.success if aviso[0] == "ok" else st.error)(aviso[1])
+        st.session_state.ofrecer_test_salida = True
+
+    # Test de salida (opcional) justo después de subir los datos
+    from test_pre_post import seccion_test
+    with st.expander("📋 Test de salida (opcional, 5 min): mide cuánto aprendiste en la práctica",
+                     expanded=bool(st.session_state.get("ofrecer_test_salida"))):
+        seccion_test("salida", guardar_prepost, cargar_prepost, prefijo="datos")
 
     # =========================================================================
     # HISTORIAL PÚBLICO (visible para cualquiera, sin contraseña)
@@ -1727,6 +1764,13 @@ def datos():
                     actualizar_estado_practica(eleg, nuevo)
                     st.rerun()
 
+        # ---------------------------------------------------------------
+        # Test de entrada y salida
+        # ---------------------------------------------------------------
+        st.divider()
+        from test_pre_post import panel_profesor as panel_prepost
+        panel_prepost(cargar_prepost)
+
 
 def encuesta():
     st.write("# Encuesta de Percepción")
@@ -1861,7 +1905,8 @@ elif st.session_state.pagina == "equipo3d":
 elif st.session_state.pagina == "aprende":
     from aprende import pagina_aprende
     pagina_aprende(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp,
-                   guardar_evaluacion, cargar_evaluaciones)
+                   guardar_evaluacion, cargar_evaluaciones,
+                   guardar_prepost, cargar_prepost)
 elif st.session_state.pagina == "datos":
     datos()
 elif st.session_state.pagina == "encuesta":

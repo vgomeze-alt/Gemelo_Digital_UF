@@ -712,16 +712,25 @@ def _panel_profesor(cargar_evaluaciones):
 # =============================================================================
 
 def pagina_aprende(PARAMS, modelo_C, modelo_J_torta, modelo_J_exp,
-                   guardar_evaluacion, cargar_evaluaciones):
+                   guardar_evaluacion, cargar_evaluaciones,
+                   guardar_prepost=None, cargar_prepost=None):
     st.write("# Aprende y Evalúate")
     st.markdown(
-        "Repasa con las flashcards, pon a prueba tu intuición con el modelo y, cuando te "
-        "sientas listo, presenta la evaluación final."
+        "Antes de la práctica presenta el **test de entrada**. Luego repasa con las flashcards, "
+        "pon a prueba tu intuición con el modelo y presenta la evaluación final. Al terminar la "
+        "práctica, el **test de salida** te muestra cuánto aprendiste."
     )
     if st.session_state.get("evaluacion", {}).get("estado") == "examen":
         st.info("📝 Tienes una evaluación en curso con tus respuestas guardadas. "
                 "Ábrela en la pestaña **📝 Evaluación final**.")
-    tab1, tab2, tab3 = st.tabs(["🃏 Flashcards", "🧪 ¿Qué pasaría si...?", "📝 Evaluación final"])
+    from test_pre_post import seccion_test
+    tab0, tab1, tab2, tab3, tab4 = st.tabs(["📋 Test de entrada", "🃏 Flashcards",
+                                            "🧪 ¿Qué pasaría si...?", "📝 Evaluación final",
+                                            "📋 Test de salida"])
+    with tab0:
+        seccion_test("entrada", guardar_prepost, cargar_prepost, prefijo="aprende")
+    with tab4:
+        seccion_test("salida", guardar_prepost, cargar_prepost, prefijo="aprende")
     with tab1:
         _seccion_flashcards()
     with tab2:
