@@ -185,6 +185,22 @@ def diagnostico(info, d, aj, PARAMS, modelo_J_torta):
     return msj
 
 
+def alertas_graves(d):
+    """Condiciones que impiden usar la práctica para actualizar el modelo."""
+    al = []
+    if (np.diff(d.loc[d["t"] > 0, "V_perm"].dropna()) < 0).any():
+        al.append("peso de permeado no acumulado")
+    R = d["R"].dropna()
+    if len(R) and R.mean() < 90:
+        al.append(f"rechazo bajo ({R.mean():.0f} %)")
+    P = d["P_ent"].dropna()
+    if len(P) and P.max() > 58:
+        al.append(f"presión sobre el máximo ({P.max():.0f} psi)")
+    if d["J"].notna().sum() < 3:
+        al.append("menos de 3 puntos de flux")
+    return al
+
+
 # ------------------------------------------------------------------ interfaz
 def mostrar_analisis(contenido, PARAMS, modelo_J_torta, modelo_C):
     import matplotlib.pyplot as plt
@@ -255,4 +271,14 @@ def mostrar_analisis(contenido, PARAMS, modelo_J_torta, modelo_C):
         resumen.append(f"K={aj['K']:.5f}; C0={aj['C0']:.2f}; R2_C={aj['R2_C']:.3f}")
     if d["R"].notna().any():
         resumen.append(f"Rechazo={d['R'].mean():.1f}%")
-    return {"vuelta": info["vuelta"], "resumen": " | ".join(resumen)}
+    from modelo_actualizado import resumen_para_guardar
+    alertas = alertas_graves(d)
+    datos_json, alertas_txt = resumen_para_guardar(d, aj, alertas)
+    if alertas:
+        st.caption("ℹ️ Por las alertas marcadas en rojo, esta práctica se registrará pero no se "
+                   "usará para actualizar el modelo del gemelo digital.")
+    else:
+        st.caption("🧠 Si el profesor aprueba esta práctica, sus datos ayudarán a actualizar el "
+                   "modelo del gemelo digital.")
+    return {"vuelta": info["vuelta"], "resumen": " | ".join(resumen),
+            "temperatura": info["temperatura"], "datos": datos_json, "alertas": alertas_txt}
