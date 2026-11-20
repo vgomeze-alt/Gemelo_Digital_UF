@@ -86,7 +86,7 @@ FLASHCARDS = [
      "¿Cuáles son los parámetros físicos principales del equipo y la práctica?",
      "• Volumen de operación: unos 80 L de lactosuero reconstituido en el tanque de "
      "alimentación.\n• Área de la membrana: 4.8 m², la que se usa para pasar de flujo a "
-     "flux.\n• Densidad del lactosuero: 1.026 g/cm³, para convertir los pesos medidos en "
+     "flux.\n• Densidad del lactosuero: 1.0208 g/cm³, para convertir los pesos medidos en "
      "volumen."),
     ("Equipo",
      "¿Qué miden el FCV y el coeficiente de rechazo R?",
@@ -367,7 +367,7 @@ REPARTO = {"Conceptos": 2, "Modelos": 2, "Equipo": 2, "Procedimiento": 2,
 N_SELECCION = sum(REPARTO.values())   # 10
 N_NUMERICAS = 2
 NOTA_APROBATORIA = 3.0
-DENSIDAD = 1.026  # kg/L, lactosuero
+DENSIDAD = 1.0208  # kg/L, lactosuero (la usada en el ajuste del modelo)
 
 
 def _elegir_sin_repetir(rng, candidatas, n, vistas):
@@ -411,7 +411,7 @@ def _numericas(rng, PARAMS, modelo_C, modelo_J_torta, modelo_J_exp):
     def flux_medido():
         m = round(rng.uniform(9.0, 14.0), 2); dt = 8
         return {"texto": f"En una toma de datos se recogen {m} kg de permeado en {dt} min. Con la "
-                         f"densidad del lactosuero (1.026 kg/L) y el área de la membrana ({A} m²), "
+                         f"densidad del lactosuero ({DENSIDAD} kg/L) y el área de la membrana ({A} m²), "
                          f"¿cuál es el flux de permeado?",
                 "correcta": (m / DENSIDAD) / (dt / 60) / A, "unidad": "L/(m²·h)"}
 

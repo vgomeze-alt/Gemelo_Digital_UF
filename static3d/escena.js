@@ -754,3 +754,253 @@ canvas.style.height = "640px";
 window.addEventListener("resize", ajustar);
 ajustar();
 animar();
+
+// =============================================================================
+// MODO PRÁCTICA: el estudiante opera el tablero y la página revisa cada paso
+// =============================================================================
+const PROCED = {
+  uf: { nombre: "🥛 Operación con lactosuero (V1+V2)", pasos: [
+    { t: "Antes de conectar nada, deja todas las válvulas cerradas y la bomba apagada.",
+      req: { valv: [], bomba: false } },
+    { t: "Conecta la entrada al tanque de alimentación con el lactosuero preparado (80 L).",
+      req: { valv: [], bomba: false, fuente: "tanque", contenido: "lactosuero" } },
+    { t: "Ubica la válvula roja V9 en la vuelta 2, contada desde totalmente cerrada.",
+      req: { v9: 2, bomba: false } },
+    { t: "Abre únicamente V1 y V2 en el tablero (V3, V4 y V5 cerradas).",
+      req: { valv: [1, 2], bomba: false } },
+    { t: "Enciende la bomba y ajusta el rotámetro de entrada a unos 6 L/min.",
+      req: { valv: [1, 2], bomba: true, caudal: [5.5, 6.5], v9: 2, fuente: "tanque", contenido: "lactosuero" } },
+  ]},
+  lavR: { nombre: "🚿 Enjuague de la línea de rechazo (V1+V3)", pasos: [
+    { t: "Deja todas las válvulas cerradas y la bomba apagada.", req: { valv: [], bomba: false } },
+    { t: "Conecta la entrada a la toma de agua de red.", req: { fuente: "red", bomba: false } },
+    { t: "Abre V1 y V3.", req: { valv: [1, 3], bomba: false } },
+    { t: "Enciende la bomba: el agua barre la línea de rechazo y sale por la manguera gruesa.",
+      req: { valv: [1, 3], bomba: true, fuente: "red" }, inicia: "cond" },
+    { t: "Mira el conductímetro y apaga la bomba cuando la conductividad esté entre 30 y 33 µS/cm.",
+      req: { bomba: false, cond: true } },
+    { t: "Termina cerrando todas las válvulas.", req: { valv: [], bomba: false } },
+  ]},
+  lavP: { nombre: "🚿 Enjuague de la línea de permeado (V1+V4)", pasos: [
+    { t: "Deja todas las válvulas cerradas y la bomba apagada.", req: { valv: [], bomba: false } },
+    { t: "Conecta la entrada a la toma de agua de red.", req: { fuente: "red", bomba: false } },
+    { t: "Abre V1 y V4.", req: { valv: [1, 4], bomba: false } },
+    { t: "Enciende la bomba: el agua limpia la manguera delgada del permeado y descarga en la caneca sobre la báscula.",
+      req: { valv: [1, 4], bomba: true, fuente: "red" } },
+    { t: "Termina: apaga la bomba y cierra todas las válvulas.", req: { valv: [], bomba: false } },
+  ]},
+  quim: { nombre: "🧪 Limpieza química con NaOH 1 %", pasos: [
+    { t: "Deja todas las válvulas cerradas y la bomba apagada.", req: { valv: [], bomba: false } },
+    { t: "Prepara la soda en el tanque de alimentación (~1 kg de NaOH en 80 L de agua, 1 %) y conecta la entrada al tanque.",
+      req: { fuente: "tanque", contenido: "naoh", bomba: false } },
+    { t: "Recircula la soda en modo V1+V2 (bomba encendida) para desintegrar la capa orgánica dentro del módulo.",
+      req: { valv: [1, 2], bomba: true, fuente: "tanque", contenido: "naoh" } },
+    { t: "Apaga la bomba, cierra las válvulas y cambia la entrada a la toma de agua limpia.",
+      req: { valv: [], bomba: false, fuente: "red" } },
+    { t: "Expulsa la soda de la línea de rechazo: V1+V3 con la bomba encendida.",
+      req: { valv: [1, 3], bomba: true, fuente: "red" } },
+    { t: "Expulsa la soda de la línea de permeado: V1+V4 con la bomba encendida (descarga a la caneca).",
+      req: { valv: [1, 4], bomba: true, fuente: "red" } },
+    { t: "Termina: apaga la bomba y cierra todas las válvulas.", req: { valv: [], bomba: false } },
+  ]},
+};
+
+const POR_QUE = {   // explicación física de cada válvula sobrante o faltante
+  extra: {
+    1: "V1 es la entrada; aquí debería estar cerrada.",
+    2: "V2 manda el flujo a la membrana y al permeado; en este paso no corresponde.",
+    3: "V3 abre la línea de rechazo hacia afuera: el líquido se iría por la manguera gruesa en vez de volver al tanque por la V9.",
+    4: "V4 es de enjuague: desvía el flujo por la línea de permeado hacia la caneca.",
+    5: "V5 inyecta aire comprimido; solo se usa en el retrolavado.",
+  },
+  falta: {
+    1: "V1 es la entrada: sin ella no pasa nada y la bomba empuja contra una válvula cerrada.",
+    2: "Sin V2 el flujo no llega a la membrana y no sale permeado.",
+    3: "Sin V3 el agua no barre la línea de rechazo.",
+    4: "Sin V4 el agua no limpia la línea de permeado.",
+    5: "Falta V5 (aire).",
+  },
+};
+
+const pr = { on: false, proc: "uf", paso: 0, errores: 0, t0: 0, cond: 850, tCond: 0,
+             st: { valv: [], bomba: false, v9: 9, fuente: "tanque", contenido: "agua", caudal: 0 } };
+
+function iguales(a, b) { return a.length === b.length && a.every(x => b.includes(x)); }
+
+function revisar(req) {
+  const s = pr.st, err = [];
+  if (req.valv) {
+    req.valv.filter(v => !s.valv.includes(v)).forEach(v => err.push("Falta abrir V" + v + ". " + POR_QUE.falta[v]));
+    s.valv.filter(v => !req.valv.includes(v)).forEach(v => err.push("V" + v + " debe estar cerrada. " + POR_QUE.extra[v]));
+  }
+  if (req.bomba === true && !s.bomba) err.push("La bomba debe estar encendida.");
+  if (req.bomba === false && s.bomba && !req.cond)
+    err.push("Apaga la bomba: válvulas y conexiones se cambian con la bomba apagada.");
+  if (req.fuente && s.fuente !== req.fuente)
+    err.push(req.fuente === "red" ? "La entrada debe ir a la toma de agua de red (los enjuagues son con agua limpia)."
+                                  : "La entrada debe ir al tanque de alimentación.");
+  if (req.contenido && s.contenido !== req.contenido)
+    err.push(req.contenido === "naoh" ? "El tanque debe tener la solución de NaOH al 1 % (~1 kg en 80 L)."
+                                      : "El tanque debe tener el lactosuero preparado.");
+  if (req.v9 !== undefined && s.v9 !== req.v9)
+    err.push(s.v9 < req.v9
+      ? "La V9 está más cerrada que la vuelta 2: aumenta la restricción y la presión transmembrana (riesgo de pasar los 4 bar de la membrana)."
+      : "La V9 está más abierta que la vuelta 2: el rechazo vuelve libre al tanque, baja la presión y casi no sale permeado.");
+  if (req.caudal && (s.caudal < req.caudal[0] || s.caudal > req.caudal[1]))
+    err.push("El rotámetro marca " + s.caudal.toFixed(1) + " L/min; ajústalo a unos 6 L/min.");
+  if (req.cond) {
+    if (s.bomba) err.push("Aún no has apagado la bomba.");
+    else if (pr.cond > 33) err.push("Apagaste antes de tiempo: el conductímetro marca " + Math.round(pr.cond) +
+                                    " µS/cm (> 33). La línea todavía no está limpia; vuelve a encender la bomba.");
+  }
+  return err;
+}
+
+function peligros() {
+  const s = pr.st, w = [];
+  if (s.bomba && !s.valv.includes(1)) w.push("Bomba encendida con V1 cerrada: trabaja contra una válvula cerrada.");
+  if (s.bomba && s.valv.includes(2) && !s.valv.includes(3) && s.v9 === 0)
+    w.push("V9 totalmente cerrada: el rechazo no tiene salida y la presión puede superar los 4 bar.");
+  if (s.bomba && s.fuente === "tanque" && s.contenido === "lactosuero" && s.valv.includes(3))
+    w.push("¡El lactosuero se está yendo por la línea de rechazo hacia afuera!");
+  if (s.bomba && s.fuente === "tanque" && s.contenido === "lactosuero" && s.valv.includes(4))
+    w.push("¡El lactosuero está saliendo por la línea de enjuague hacia la caneca!");
+  return w;
+}
+
+function cicloDeEstado() {
+  const s = pr.st;
+  if (!s.bomba) return "off";
+  if (iguales(s.valv, [1, 2])) return s.contenido === "naoh" && s.fuente === "tanque" ? "quim" : "uf";
+  if (iguales(s.valv, [1, 3])) return "lavR";
+  if (iguales(s.valv, [1, 4])) return "lavP";
+  if (iguales(s.valv, [5])) return "retro";
+  return "off";
+}
+
+function pintarPractica() {
+  aplicarCiclo(cicloDeEstado());
+  const s = pr.st;
+  pilotos.forEach((p, i) => {
+    const on = s.valv.includes(i + 1);
+    p.material.emissive.setHex(on ? 0xff9500 : 0x3a2400);
+    p.material.color.setHex(on ? 0xffc04d : 0xf0a01a);
+  });
+  pilotoBomba.material.emissive.setHex(s.bomba ? 0xff9500 : 0x3a2400);
+  volanteRojo.material.emissive.setHex(s.v9 <= 1 ? 0xaa1010 : (s.v9 === 2 ? 0x661010 : 0x200000));
+  document.querySelectorAll("#prTab button[data-v]").forEach(b =>
+    b.classList.toggle("act", s.valv.includes(+b.dataset.v)));
+  document.getElementById("prBomba").classList.toggle("act", s.bomba);
+  document.getElementById("prBomba").textContent = s.bomba ? "BOMBA: ENCENDIDA" : "BOMBA: apagada";
+  document.getElementById("prV9").textContent = s.v9;
+  document.getElementById("prCau").textContent = s.caudal.toFixed(1);
+  const w = peligros();
+  document.getElementById("prPeligro").innerHTML = w.map(x => "⚠️ " + x).join("<br>");
+  document.getElementById("prPeligro").style.display = w.length ? "block" : "none";
+  const condVis = pr.proc === "lavR" && pr.paso >= 3;
+  document.getElementById("prCond").style.display = condVis ? "block" : "none";
+  document.getElementById("prCondV").textContent = Math.round(pr.cond);
+  const p = PROCED[pr.proc];
+  document.getElementById("prPasos").innerHTML = p.pasos.map((x, i) =>
+    '<li class="' + (i < pr.paso ? "ok" : (i === pr.paso ? "cur" : "")) + '">' +
+    (i < pr.paso ? "✅ " : "") + x.t + "</li>").join("");
+  document.getElementById("detalleCiclo").innerHTML =
+    "<b>🎮 Modo práctica: " + p.nombre + "</b><br>" +
+    (pr.paso < p.pasos.length ? "Paso " + (pr.paso + 1) + " de " + p.pasos.length + ": " + p.pasos[pr.paso].t
+                              : "Procedimiento terminado.");
+}
+
+function reiniciarPractica() {
+  pr.paso = 0; pr.errores = 0; pr.t0 = Date.now(); pr.cond = 850; pr.tCond = 0;
+  pr.st = { valv: [], bomba: false, v9: 9, fuente: "tanque", contenido: "agua", caudal: 0 };
+  // en los enjuagues la V9 ya queda en su posición de trabajo
+  if (pr.proc !== "uf") pr.st.v9 = 2;
+  document.getElementById("prFuente").value = pr.st.fuente;
+  document.getElementById("prCont").value = pr.st.contenido;
+  document.getElementById("prMsg").innerHTML = "";
+  document.getElementById("prFin").style.display = "none";
+  pintarPractica();
+}
+
+function comprobarPaso() {
+  const p = PROCED[pr.proc];
+  if (pr.paso >= p.pasos.length) return;
+  const err = revisar(p.pasos[pr.paso].req);
+  const msg = document.getElementById("prMsg");
+  if (err.length) {
+    pr.errores += 1;
+    msg.className = "mal";
+    msg.innerHTML = "<b>Revisa:</b><ul>" + err.map(e => "<li>" + e + "</li>").join("") + "</ul>";
+    return;
+  }
+  msg.className = "bien";
+  msg.innerHTML = "✅ ¡Correcto! " + (pr.paso + 1 < p.pasos.length ? "Sigue con el próximo paso." : "");
+  if (p.pasos[pr.paso].inicia === "cond") { pr.cond = 850; pr.tCond = 0; }
+  pr.paso += 1;
+  if (pr.paso >= p.pasos.length) {
+    const nota = Math.max(0, 100 - 10 * pr.errores);
+    const seg = Math.round((Date.now() - pr.t0) / 1000);
+    document.getElementById("prFin").style.display = "block";
+    document.getElementById("prFin").innerHTML =
+      "🏁 <b>¡Procedimiento completo!</b><br>Puntaje: <b>" + nota + "/100</b> · " +
+      pr.errores + " intento(s) fallido(s) · " + Math.floor(seg / 60) + " min " + (seg % 60) + " s" +
+      (nota === 100 ? "<br>¡Perfecto! Ya puedes hacerlo en el laboratorio." :
+                      "<br>Repítelo hasta hacerlo sin errores.");
+    msg.innerHTML = ""; msg.className = "";
+  }
+  pintarPractica();
+}
+
+function modoPractica(on) {
+  pr.on = on;
+  document.getElementById("panelPractica").style.display = on ? "block" : "none";
+  document.getElementById("tarjeta").style.display = "none";
+  document.getElementById("btnPractica").classList.toggle("act", on);
+  document.querySelectorAll(".panelbtns button[data-c]").forEach(b => (b.style.display = on ? "none" : ""));
+  document.getElementById("leyenda").style.display = on ? "none" : "";
+  if (on) { if (interiorOn) verInterior(false); reiniciarPractica(); }
+  else aplicarCiclo("off");
+}
+
+(function construirPractica() {
+  const b = document.createElement("button");
+  b.id = "btnPractica";
+  b.textContent = "🎮 Modo práctica";
+  b.onclick = () => modoPractica(!pr.on);
+  document.getElementById("botones").appendChild(b);
+  const sel = document.getElementById("prProc");
+  Object.entries(PROCED).forEach(([k, v]) => {
+    const o = document.createElement("option"); o.value = k; o.textContent = v.nombre; sel.appendChild(o);
+  });
+  sel.onchange = () => { pr.proc = sel.value; reiniciarPractica(); };
+  document.querySelectorAll("#prTab button[data-v]").forEach(btn => btn.onclick = () => {
+    const v = +btn.dataset.v, s = pr.st;
+    s.valv = s.valv.includes(v) ? s.valv.filter(x => x !== v) : s.valv.concat([v]).sort();
+    pintarPractica();
+  });
+  document.getElementById("prBomba").onclick = () => {
+    pr.st.bomba = !pr.st.bomba;
+    if (pr.st.bomba && pr.st.caudal === 0) pr.st.caudal = 3.0;
+    if (!pr.st.bomba) pr.st.caudal = 0;
+    pintarPractica();
+  };
+  document.getElementById("prV9m").onclick = () => { pr.st.v9 = Math.max(0, pr.st.v9 - 1); pintarPractica(); };
+  document.getElementById("prV9p").onclick = () => { pr.st.v9 = Math.min(9, pr.st.v9 + 1); pintarPractica(); };
+  document.getElementById("prCm").onclick = () => { if (pr.st.bomba) pr.st.caudal = Math.max(0.5, pr.st.caudal - 0.5); pintarPractica(); };
+  document.getElementById("prCp").onclick = () => { if (pr.st.bomba) pr.st.caudal = Math.min(10, pr.st.caudal + 0.5); pintarPractica(); };
+  document.getElementById("prFuente").onchange = e => { pr.st.fuente = e.target.value; pintarPractica(); };
+  document.getElementById("prCont").onchange = e => { pr.st.contenido = e.target.value; pintarPractica(); };
+  document.getElementById("prComprobar").onclick = comprobarPaso;
+  document.getElementById("prReiniciar").onclick = reiniciarPractica;
+  // conductímetro: baja mientras corre el enjuague de rechazo con agua de red
+  setInterval(() => {
+    if (!pr.on || pr.proc !== "lavR" || pr.paso < 4) return;
+    const s = pr.st;
+    if (s.bomba && s.fuente === "red" && iguales(s.valv, [1, 3])) {
+      pr.tCond += 0.25;
+      pr.cond = 31 + (850 - 31) * Math.exp(-pr.tCond / 7);
+      document.getElementById("prCondV").textContent = Math.round(pr.cond);
+      document.getElementById("prCondM").textContent = (pr.tCond * 10 / 45).toFixed(1);
+    }
+  }, 250);
+})();

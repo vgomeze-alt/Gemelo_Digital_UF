@@ -85,18 +85,22 @@ COMPONENTES = {
     "valvulas": {
         "nombre": "Válvulas solenoides V1–V5",
         "desc": ("Según el P&ID del fabricante: VAL1 entrada · VAL2 permeado · VAL3 "
-                 "rechazo · VAL4 enjuague · VAL5 aire. Ciclos del manual del "
-                 "laboratorio: ultrafiltración = 1+2 · lavado de línea de rechazo = "
-                 "1+3 · lavado de línea de permeado = 1+4."),
+                 "rechazo · VAL4 enjuague · VAL5 aire. Ciclos del laboratorio: "
+                 "ultrafiltración y recirculación de NaOH = 1+2 · enjuague de la línea "
+                 "de rechazo = 1+3 (se sigue con el conductímetro hasta 30–33 µS/cm) · "
+                 "enjuague de la línea de permeado = 1+4."),
         "fuente": "P&ID (tabla VAL) · Manual (ciclos)",
     },
     "valvulaRoja": {
         "nombre": "Válvula reguladora roja V9 (retorno del rechazo)",
-        "desc": ("Válvula trasera de 9 vueltas. Durante la ultrafiltración es la ÚNICA "
-                 "que regula el caudal del rechazo que regresa al tanque de "
-                 "alimentación (la V3 permanece cerrada) y con él la relación entre "
-                 "permeado y rechazo. La práctica se opera en la vuelta 2. Se ilumina "
-                 "cuando está regulando el retorno."),
+        "desc": ("Válvula manual de aguja de 9 vueltas en la tubería trasera de rechazo. "
+                 "Durante la ultrafiltración es la ÚNICA que regula el rechazo que "
+                 "regresa al tanque (la V3 permanece cerrada). Al abrirla (más vueltas) "
+                 "el rechazo fluye libre, baja la presión en la membrana y sale menos "
+                 "permeado; al cerrarla (menos vueltas) aumenta la restricción y la "
+                 "presión transmembrana y se fuerza más líquido por los poros. Se opera "
+                 "en la vuelta 2, contada desde totalmente cerrada, para equilibrar la "
+                 "presión sin saturar el sistema."),
         "fuente": "Manual (componente 10) · Tesis (caracterización)",
     },
     "bombaLavado": {
@@ -147,13 +151,13 @@ COMPONENTES = {
 CICLOS = {
     "off": {"etiqueta": "⏹ Detenido", "valvulas": [], "detalle": "Equipo apagado. Haz clic en los componentes para conocerlos."},
     "uf": {"etiqueta": "🥛 Operación con lactosuero (V1+V2)", "valvulas": [1, 2],
-           "detalle": "Solo V1 y V2 abiertas (V3 cerrada). La mezcla sale por ABAJO del tanque hacia la bomba y el equipo. El rechazo (rojo, manguera gruesa) regresa por ARRIBA al mismo tanque en lazo cerrado, regulado únicamente por la válvula roja V9 (vuelta 2). El permeado (azul, manguera delgada) va al otro tanque, sobre su báscula."},
-    "quim": {"etiqueta": "🧪 Recirculación de NaOH (limpieza química)", "valvulas": [1],
-             "detalle": "Se prepara ~1 kg de soda cáustica en 80 L de agua (NaOH ≈ 1 %) en el tanque de alimentación y se recircula por el equipo con la misma bomba del lactosuero, regresando al tanque. Activa 🔬 para ver cómo disuelve la torta. Después se enjuagan las líneas (V1+V3 y V1+V4)."},
+           "detalle": "Modo principal de trabajo: solo V1 y V2 abiertas (V3 cerrada). La mezcla pasa por el microfiltro y el rotámetro de entrada (~6 L/min) antes de la membrana. Sale por ABAJO del tanque hacia la bomba y el equipo. El rechazo (rojo, manguera gruesa) regresa por ARRIBA al mismo tanque en lazo cerrado, regulado únicamente por la válvula roja V9 (vuelta 2). El permeado (azul, manguera delgada) va al otro tanque, sobre su báscula."},
+    "quim": {"etiqueta": "🧪 Recirculación de NaOH (V1+V2)", "valvulas": [1, 2],
+             "detalle": "Cuando hay ensuciamiento severo por grasas y proteínas se prepara ~1 kg de soda cáustica en 80 L de agua (NaOH ≈ 1 %) en el tanque de alimentación y se recircula en modo V1+V2 para desintegrar la capa orgánica dentro del módulo. Activa 🔬 para ver cómo disuelve la torta. Después se alternan V1+V3 y V1+V4 con agua limpia para expulsar la soda saponificada y los residuos."},
     "lavR": {"etiqueta": "🚿 Lavado con agua: línea de rechazo (V1+V3)", "valvulas": [1, 3],
-             "detalle": "El flujo de lavado corre por la línea de rechazo y sale por la manguera gruesa (barrido de la línea o vaciado del tanque), 5–10 min hasta que salga clara (~30–33 µS/cm)."},
+             "detalle": "Lavado preventivo: el agua de la planta barre la tubería de rechazo y sale por la manguera gruesa. Se usa antes del lactosuero para purgar la línea, o después de la corrida para arrastrar partículas grandes y azúcares. Se mide con el conductímetro hasta 30–33 µS/cm."},
     "lavP": {"etiqueta": "🚿 Enjuague línea de permeado (V1+V4) → caneca", "valvulas": [1, 4],
-             "detalle": "El flujo de lavado corre por la línea de permeado y sale por la manguera delgada, que descarga directamente en la caneca externa sobre la báscula."},
+             "detalle": "Lavado preventivo de la línea delgada de permeado: el agua sale por la manguera delgada a la caneca externa sobre la báscula, para que no queden partículas que alteren las mediciones de volumen o masa."},
     "retro": {"etiqueta": "💨 Retrolavado + aire (V5)", "valvulas": [5],
               "detalle": "Agua del tanque azul (con NaOH agregado manualmente si es limpieza química), impulsada por la bomba de lavado en contraflujo, más aire comprimido: desprende la torta (cada 15–60 min, 30–60 s)."},
 }
@@ -199,6 +203,25 @@ def _html_escena(j_ratio, j_curva, c_curva):
       color:#fff; border-radius:16px; padding:5px 14px; font-size:12.5px; z-index:4; }}
   #foul {{ position:absolute; left:10px; bottom:74px; background:rgba(255,255,255,.93); border-radius:10px;
       padding:7px 12px; font-size:12.5px; color:#213547; box-shadow:0 1px 6px rgba(0,0,0,.15); display:none; }}
+  #panelPractica {{ display:none; position:absolute; top:10px; right:10px; width:350px; max-height:625px;
+      overflow-y:auto; background:rgba(255,255,255,.97); border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.22);
+      padding:11px 14px; z-index:7; font-size:13px; color:#213547; }}
+  #panelPractica h3 {{ margin:0 0 6px; font-size:15.5px; color:#082e52; }}
+  #panelPractica select {{ width:100%; padding:4px; font-size:13px; margin-bottom:6px; }}
+  #prPasos {{ margin:4px 0 8px; padding-left:18px; }}
+  #prPasos li {{ margin-bottom:3px; color:#8795a1; }}
+  #prPasos li.ok {{ color:#2f855a; }}
+  #prPasos li.cur {{ color:#082e52; font-weight:600; }}
+  .prfila {{ display:flex; gap:5px; align-items:center; margin:4px 0; flex-wrap:wrap; }}
+  .prfila button {{ border:1px solid #cbd5e0; background:#fff; border-radius:7px; padding:5px 9px; cursor:pointer; font-size:12.5px; }}
+  .prfila button.act {{ background:#ff9500; color:#fff; border-color:#e08200; }}
+  #prComprobar {{ background:#082e52 !important; color:#fff; border-color:#082e52 !important; }}
+  #prMsg.mal {{ background:#fff5f5; border-left:4px solid #e53e3e; padding:5px 8px; margin-top:6px; }}
+  #prMsg.bien {{ background:#f0fff4; border-left:4px solid #38a169; padding:5px 8px; margin-top:6px; }}
+  #prMsg ul {{ margin:3px 0 0; padding-left:16px; }}
+  #prPeligro {{ display:none; background:#fffaf0; border-left:4px solid #dd6b20; padding:5px 8px; margin:6px 0; }}
+  #prCond {{ display:none; background:#ebf8ff; border-radius:8px; padding:5px 9px; margin:6px 0; }}
+  #prFin {{ display:none; background:#f0fff4; border-radius:8px; padding:7px 9px; margin-top:6px; }}
 </style></head><body>
 <canvas id="c"></canvas>
 <div class="panelbtns" id="botones"></div>
@@ -206,6 +229,34 @@ def _html_escena(j_ratio, j_curva, c_curva):
   <input type="range" id="min" min="0" max="40" value="0" step="1" style="width:170px">
   <div style="font-size:11px;color:#586c7c">El permeado se frena según el modelo de Hermia<br>y la membrana se tiñe por el ensuciamiento</div></div>
 <div id="detalleCiclo"></div>
+<div id="panelPractica">
+  <h3>🎮 Modo práctica</h3>
+  <select id="prProc"></select>
+  <ol id="prPasos"></ol>
+  <div id="prTab">
+    <b>Tablero</b>
+    <div class="prfila">Válvulas:
+      <button data-v="1">V1</button><button data-v="2">V2</button><button data-v="3">V3</button>
+      <button data-v="4">V4</button><button data-v="5">V5</button></div>
+    <div class="prfila"><button id="prBomba">BOMBA: apagada</button></div>
+    <div class="prfila">Válvula roja V9: <button id="prV9m">−</button> vuelta <b id="prV9">9</b>
+      <button id="prV9p">+</button> <span style="font-size:11px;color:#586c7c">(0 = cerrada · 9 = abierta)</span></div>
+    <div class="prfila">Rotámetro de entrada: <button id="prCm">−</button> <b id="prCau">0.0</b> L/min
+      <button id="prCp">+</button></div>
+    <div class="prfila">Entrada conectada a:
+      <select id="prFuente" style="width:auto;margin:0"><option value="tanque">Tanque de alimentación</option>
+        <option value="red">Toma de agua de red</option></select></div>
+    <div class="prfila">Contenido del tanque:
+      <select id="prCont" style="width:auto;margin:0"><option value="agua">Agua</option>
+        <option value="lactosuero">Lactosuero preparado</option><option value="naoh">NaOH 1 %</option></select></div>
+  </div>
+  <div id="prCond">🔌 Conductímetro: <b id="prCondV">850</b> µS/cm · minuto simulado <b id="prCondM">0.0</b>
+    <div style="font-size:11px;color:#586c7c">Objetivo: 30–33 µS/cm</div></div>
+  <div id="prPeligro"></div>
+  <div class="prfila"><button id="prComprobar">✔ Comprobar paso</button><button id="prReiniciar">↺ Reiniciar</button></div>
+  <div id="prMsg"></div>
+  <div id="prFin"></div>
+</div>
 <div id="panelInterior" style="display:none;position:absolute;right:10px;top:10px;width:335px;
   background:rgba(255,255,255,.96);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.22);
   padding:12px 14px;z-index:5;font-size:13px;color:#213547">
@@ -243,6 +294,10 @@ def pagina_equipo3d(PARAMS, modelo_J_torta, modelo_C):
         "activa un **ciclo de operación** para ver el recorrido del fluido con los "
         "colores del P&ID del fabricante."
     )
+    st.info("🎮 **Nuevo: Modo práctica.** Pulsa el botón dentro de la escena, elige un "
+            "procedimiento (operación, enjuagues o limpieza con NaOH) y opera el tablero paso "
+            "a paso: la página te dice si lo hiciste bien y por qué. Practícalo antes de ir "
+            "al laboratorio.")
     # Velocidad relativa del permeado según Hermia (conecta el 3D con el modelo del gemelo)
     t = np.arange(0, 41, 1.0)
     J = modelo_J_torta(t)
