@@ -185,7 +185,7 @@ COLUMNAS_REGISTRO = ["nombre", "correo", "tipo_practica", "archivo", "tamano_kb"
 # Resultados de la evaluación de la pestaña "Aprende y Evalúate" (pestaña
 # "evaluaciones" de la misma hoja de Google Sheets).
 EVAL_PATH = "evaluaciones.csv"
-COLUMNAS_EVAL = ["fecha", "nombre", "correo", "grupo", "nota", "correctas", "total", "tiempo_min", "codigo"]
+COLUMNAS_EVAL = ["fecha", "nombre", "correo", "grupo", "nota", "correctas", "total", "tiempo_min", "codigo", "temas"]
 
 # Datos de cada práctica subida (para que el modelo aprenda de las aprobadas).
 # Pestaña "practicas" de la misma hoja de Google Sheets.
@@ -347,7 +347,7 @@ def cargar_evaluaciones():
 
 def guardar_evaluacion(resultado):
     """Agrega una fila con el resultado de una evaluación."""
-    fila = {c: resultado[c] for c in COLUMNAS_EVAL}
+    fila = {c: resultado.get(c, "") for c in COLUMNAS_EVAL}
     if _config_gsheets():
         _llamar_script("POST", hoja="evaluaciones", accion="agregar", fila=fila)
     else:
@@ -1768,8 +1768,8 @@ def datos():
         # Test de entrada y salida
         # ---------------------------------------------------------------
         st.divider()
-        from test_pre_post import panel_profesor as panel_prepost
-        panel_prepost(cargar_prepost)
+        st.caption("📊 Los resultados del test de entrada y salida, la evaluación final y el análisis "
+                   "de las prácticas están en **📊 Panel del profesor** (menú lateral).")
 
 
 def encuesta():
@@ -1875,6 +1875,8 @@ if st.sidebar.button("Sube tus Datos", width="stretch"):
     st.session_state.pagina = "datos"
 if st.sidebar.button("Encuesta de Percepción", width="stretch"):
     st.session_state.pagina = "encuesta"
+if st.sidebar.button("📊 Panel del profesor", width="stretch"):
+    st.session_state.pagina = "panel_profesor"
 
 # --- Imagen del equipo de ultrafiltración, al final del menú lateral ---
 if os.path.exists("Multimedia/Imagenes/equipo_UF.webp"):
@@ -1911,3 +1913,6 @@ elif st.session_state.pagina == "datos":
     datos()
 elif st.session_state.pagina == "encuesta":
     encuesta()
+elif st.session_state.pagina == "panel_profesor":
+    from panel_profesor import pagina_panel
+    pagina_panel(cargar_registros, cargar_practicas, cargar_evaluaciones, cargar_prepost)
