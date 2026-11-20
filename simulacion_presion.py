@@ -203,19 +203,9 @@ def pagina_presion(PARAMS):
                                "No se midió en el laboratorio.")
             semilla = st.number_input("Semilla aleatoria", 0, 99999, 2026, 1,
                                       help="Con la misma semilla se obtienen los mismos resultados.")
-        simular = st.button("Simular con presión 🎲", type="primary", width="stretch")
-
-    if not simular and "sim_presion" not in st.session_state:
-        with col_out:
-            st.info("Elige las condiciones y presiona **Simular con presión 🎲**.")
-        _explicacion()
-        return
+        st.caption("Los resultados se actualizan solos al cambiar cualquier dato.")
 
     entradas = (float(PARAMS["J_agua"]), dP_psi, T, f_mem, s, C0, t_final, n_mc, int(semilla), p_max_bar)
-    if simular:
-        st.session_state.sim_presion = entradas
-    entradas = st.session_state.sim_presion
-    _, dP_psi, T, f_mem, s, C0, t_final, n_mc, semilla, p_max_bar = entradas
     r = correr(*entradas)
 
     dP = dP_psi * PSI_A_PA

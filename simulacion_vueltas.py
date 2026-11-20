@@ -120,18 +120,12 @@ def pagina_vueltas(PARAMS):
                                  help="Presión máxima que alcanza la bomba con la salida casi cerrada.")
             s_med = st.slider("Compresibilidad de la torta, s", 0.0, 1.0, 0.7, 0.05)
             semilla = st.number_input("Semilla aleatoria", 0, 99999, 2026, 1)
-        simular = st.button("Simular todas las vueltas 🎲", type="primary", width="stretch")
+        st.caption("Los resultados se actualizan solos al cambiar cualquier dato.")
 
-    if not simular and "sim_vueltas" not in st.session_state:
-        with col_out:
-            st.info("Ajusta las condiciones y presiona **Simular todas las vueltas 🎲**.")
-        _explicacion()
-        return
+    # Se recalcula en cada cambio (toma milisegundos): así cada dato que se mueve
+    # se refleja de inmediato en las gráficas.
     entradas = (float(PARAMS["J_agua"]), C0, t_final, T, n_mc, int(semilla),
                 n_med, r_med, p_cierre, s_med)
-    if simular:
-        st.session_state.sim_vueltas = entradas
-    entradas = st.session_state.sim_vueltas
     r = correr_vueltas(*entradas)
     t, J, C, dP, frac, Vp = r["t"], r["J"], r["C"], r["dP"], r["frac"], r["Vp"]
     pmax = sp.P_MAX_FICHA_BAR
