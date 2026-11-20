@@ -62,7 +62,7 @@ FLASHCARDS = [
      "concentración inicial, C(t) la concentración al tiempo t y K una constante que agrupa "
      "presión, viscosidad, resistencias y área. Supone que casi nada de proteína atraviesa "
      "la membrana.\n\nLo que baja de forma lineal es 1/C, así que C sube cada vez más "
-     "rápido. K ≈ 0.00127 (g/L)⁻¹·min⁻¹ se ajustó con los datos R:28/72 (R² = 0.972)."),
+     "rápido. K ≈ 0.00127 (g/L)⁻¹·min⁻¹ se ajustó con los datos de la relación permeado/rechazo 28/72 (válvula roja en la vuelta 2), R² = 0.972."),
     ("Modelos",
      "¿Qué dice el modelo de Hermia n = 0 (formación de torta) sobre el flux?",
      "Supone que la proteína forma una capa (torta) cada vez más gruesa sobre la membrana, "
