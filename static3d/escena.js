@@ -4,6 +4,7 @@
 
 const COMPONENTES = __COMPONENTES__;
 const CICLOS = __CICLOS__;
+const VUELTAS = __VUELTAS__;   // modelo de la válvula roja por vuelta (simulacion_vueltas.py)
 const JRATIO = __JRATIO__;   // J(t)/J0 del modelo de Hermia, t = 0..40 min
 const JCURVE = __JCURVE__;   // J(t) en L/m2 h
 const CCURVE = __CCURVE__;   // C(t) en g/L (balance por lotes)
@@ -121,15 +122,24 @@ registrar(tcontrol);
 // ------------------------------------------------------------- tablero hidráulico
 const thid = grupo("tableroHidraulico");
 caja(thid, 0.62, 0.4, 0.08, M.blanco, -0.05, 0.82, -0.16);
+const flotadores = [];                                              // entrada, permeado, rechazo
 for (let i = 0; i < 3; i++) {                                       // rotámetros
   caja(thid, 0.05, 0.3, 0.035, M.vidrio, -0.28 + i * 0.075, 0.82, -0.115);
-  caja(thid, 0.018, 0.02, 0.03, M.rojo, -0.28 + i * 0.075, 0.76 + i * 0.03, -0.112);
+  flotadores.push(caja(thid, 0.018, 0.02, 0.03, M.rojo, -0.28 + i * 0.075, 0.76 + i * 0.03, -0.112));
 }
 const posPI = [[-0.02, 0.9], [0.1, 0.9], [0.22, 0.9], [0.04, 0.73], [0.18, 0.73]];
 posPI.forEach(p => {                                                // manómetros PI 1.01–1.05
   cil(thid, 0.035, 0.016, M.negro, p[0], p[1], -0.118, "x");
   cil(thid, 0.029, 0.02, M.blancoMate, p[0], p[1], -0.117, "x");
 });
+// aguja del manómetro de PRESIÓN ENTRADA (PI 1.01)
+const agujaEntrada = new THREE.Group();
+agujaEntrada.position.set(posPI[0][0], posPI[0][1], -0.104);
+const matAguja = new THREE.MeshBasicMaterial({ color: 0xc00000 });
+const agujaMesh = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.026, 0.002), matAguja);
+agujaMesh.position.y = 0.011;
+agujaEntrada.add(agujaMesh);
+thid.add(agujaEntrada);
 registrar(thid);
 
 // ------------------------------------------------------------- microfiltro
@@ -733,7 +743,7 @@ function animar() {
   Object.entries(tubos).forEach(([id, t]) => {
     if (!t.activo) return;
     const esPermeado = id.startsWith("permeado");
-    const v = 0.07 * (esPermeado ? jr : 1);
+    const v = 0.07 * (esPermeado ? jr * (cicloActual === "uf" ? factorV9 : 1) : 1);
     t.particulas.forEach(p => {
       p.userData.fase = (p.userData.fase + v * dt) % 1;
       p.position.copy(t.curva.getPointAt(p.userData.fase));
@@ -1003,4 +1013,77 @@ function modoPractica(on) {
       document.getElementById("prCondM").textContent = (pr.tCond * 10 / 45).toFixed(1);
     }
   }, 250);
+})();
+
+
+// =============================================================================
+// VÁLVULA ROJA V9 CONECTADA AL MODELO (simulador "Vueltas de la válvula roja")
+// =============================================================================
+let v9Libre = 2;          // vuelta en el modo normal
+let factorV9 = 1;         // velocidad relativa del permeado respecto a la vuelta 2
+const P_MAX_PSI = 58;     // 0.4 MPa ≈ 4 bar, ficha técnica de la membrana
+
+function ubicarFlotador(i, q) {                       // rotámetro 2–18 L/min sobre 0.3 de alto
+  const y = 0.68 + Math.max(0, Math.min(1, (q - 2) / 16)) * 0.27;
+  flotadores[i].position.y = q <= 0 ? 0.68 : y;
+}
+
+function actualizarV9() {
+  const v = pr.on ? pr.st.v9 : v9Libre;
+  const enUF = cicloActual === "uf" && (!pr.on || pr.st.contenido === "lactosuero");
+  const lec = document.getElementById("lecV9");
+  const ctrl = document.getElementById("ctrlV9");
+  ctrl.style.display = (!pr.on && cicloActual === "uf") ? "flex" : "none";
+  document.getElementById("v9Libre").textContent = v9Libre;
+  if (!enUF || !VUELTAS) {
+    lec.style.display = "none";
+    agujaEntrada.rotation.z = 2.36;                   // aguja en cero
+    flotadores.forEach((f, i) => ubicarFlotador(i, cicloActual === "off" ? 0 : (i === 1 ? 0 : 6)));
+    factorV9 = 1;
+    return;
+  }
+  const d = VUELTAS[v];
+  const qAlim = pr.on ? pr.st.caudal : 6;
+  const escala = qAlim > 0 ? qAlim / 6 : 0;           // el modelo está hecho a 6 L/min
+  const P = d.P * escala * escala;                     // ΔP ∝ Q² en la válvula
+  const ang = 2.36 - Math.min(P / 60, 1) * 4.71;      // 0–60 psi en 270°
+  agujaEntrada.rotation.z = ang;
+  const qPerm = Math.min(d.Qp * escala, qAlim * 0.9);
+  ubicarFlotador(0, qAlim);
+  ubicarFlotador(1, qPerm);
+  ubicarFlotador(2, Math.max(qAlim - qPerm, 0));
+  factorV9 = VUELTAS[2].J0 > 0 ? Math.max(0.15, d.J0 / VUELTAS[2].J0) : 1;
+  const peligro = P > P_MAX_PSI || d.prob > 0.05;
+  matAguja.color.setHex(peligro ? 0xff0000 : 0xc00000);
+  volanteRojo.material.emissive.setHex(peligro ? 0xff2020 : (v === 2 ? 0x661010 : 0x300808));
+  lec.style.display = "block";
+  lec.style.left = pr.on ? "210px" : "362px";
+  lec.className = peligro ? "peligro" : "";
+  document.getElementById("lecV9txt").innerHTML =
+    "<b>Válvula roja V9 en la vuelta " + v + "</b> " +
+    (d.datos ? '<span class="etq dato">dato experimental</span>'
+             : '<span class="etq est">estimación del modelo</span>') + "<br>" +
+    "Presión de entrada ≈ <b>" + P.toFixed(0) + " psi</b> (" + (P / 14.5).toFixed(1) + " bar)" +
+    (d.datos ? "" : ' <span class="rango">[' + (d.Plo * escala * escala).toFixed(0) + "–" +
+                    (d.Phi * escala * escala).toFixed(0) + "]</span>") +
+    " · Flux inicial ≈ <b>" + (d.J0 * Math.min(escala, 1.5)).toFixed(1) + " L/m²·h</b>" +
+    " · Permeado ≈ <b>" + (qAlim > 0 ? 100 * qPerm / qAlim : 0).toFixed(0) + " %</b> del caudal" +
+    (escala > 0 && Math.abs(qAlim - 6) > 0.25 ? "<br><i>Rotámetro a " + qAlim.toFixed(1) +
+       " L/min: valores escalados desde los 6 L/min del modelo (aproximado).</i>" : "") +
+    (peligro ? (P > P_MAX_PSI
+        ? "<br>🚫 <b>Supera la presión máxima de la membrana (0.4 MPa ≈ 58 psi).</b> No operar así."
+        : "<br>🚫 <b>Riesgo de superar la presión máxima de la membrana (58 psi)</b>: en " +
+          Math.round(100 * d.prob) + " % de las simulaciones se pasa. No operar así.") :
+     (v >= 6 ? "<br>Válvula muy abierta: el rechazo vuelve libre, baja la presión y sale poco permeado." : ""));
+}
+
+(function construirV9() {
+  document.getElementById("v9m").onclick = () => { v9Libre = Math.max(0, v9Libre - 1); actualizarV9(); };
+  document.getElementById("v9p").onclick = () => { v9Libre = Math.min(9, v9Libre + 1); actualizarV9(); };
+  // se refresca tras cada cambio de ciclo o del tablero de práctica
+  const _aplicar = aplicarCiclo;
+  aplicarCiclo = function (c) { _aplicar(c); actualizarV9(); };
+  const _pintar = pintarPractica;
+  pintarPractica = function () { _pintar(); actualizarV9(); };
+  actualizarV9();
 })();
