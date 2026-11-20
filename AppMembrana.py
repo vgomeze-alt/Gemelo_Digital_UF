@@ -1429,6 +1429,16 @@ def datos():
         "Los datos NO se suben ni se envían hasta que presiones el botón "
         "'Subir reporte final'."
     )
+    # Análisis inmediato: el grupo ve sus datos frente al modelo ANTES de enviar
+    resultado_analisis = None
+    if archivo is not None and archivo.name.lower().endswith(".xlsx"):
+        from analisis_datos import mostrar_analisis
+        with st.container(border=True):
+            resultado_analisis = mostrar_analisis(archivo.getvalue(), PARAMS,
+                                                  modelo_J_torta, modelo_C)
+    elif archivo is not None:
+        st.info("Para ver el análisis automático de tus datos, usa la plantilla de Excel (.xlsx) del paso 1.")
+
     enviar = st.button("📤 Subir reporte final", key=f"btn_subir_{v}")
 
     if enviar:
@@ -1450,7 +1460,9 @@ def datos():
                     tipo_practica=practica,
                     archivo_nombre=archivo.name,
                     tamano_bytes=archivo.size,
-                    observaciones=observaciones.strip(),
+                    observaciones=(observaciones.strip() +
+                                   (f" [Ajuste: {resultado_analisis['resumen']}]"
+                                    if resultado_analisis and resultado_analisis["resumen"] else "")).strip(),
                 )
             except Exception as e:
                 st.session_state.aviso_registro = f"No se pudo guardar el registro en Google Sheets: {e}"
@@ -1461,7 +1473,9 @@ def datos():
                 nombre_archivo=archivo.name,
                 tamano_bytes=archivo.size,
                 adjuntar_archivo=archivo,
-                observaciones=observaciones.strip(),
+                observaciones=(observaciones.strip() +
+                               (f"\n\nAjuste automático del gemelo digital: {resultado_analisis['resumen']}"
+                                if resultado_analisis and resultado_analisis["resumen"] else "")).strip(),
             )
             # Se guarda el resultado para mostrarlo DESPUÉS del st.rerun() de abajo
             # (si se muestra aquí, el rerun lo borra antes de que se vea).
