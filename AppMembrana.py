@@ -758,12 +758,17 @@ def simulacion():
     st.write("# Simulación")
     modo = st.radio(
         "Tipo de simulación",
-        ["Simulación base (datos de la práctica estándar)", "Presión y Montecarlo 🎲"],
+        ["Simulación base (datos de la práctica estándar)", "Presión y Montecarlo 🎲",
+         "Vueltas de la válvula roja 🔧"],
         horizontal=True,
         help="La simulación base usa los modelos ajustados con los datos de laboratorio. "
              "El modo de presión explora qué pasa al cambiar la presión, la membrana o la "
              "temperatura, con incertidumbre (Montecarlo).",
     )
+    if modo.startswith("Vueltas"):
+        from simulacion_vueltas import pagina_vueltas
+        pagina_vueltas(PARAMS)
+        return
     if modo.startswith("Presión"):
         from simulacion_presion import pagina_presion
         pagina_presion(PARAMS)
