@@ -8,7 +8,7 @@
 #   - R_M: resistencia de la membrana limpia, calculada con el flux de agua
 #     medido a la presión de referencia (R_M = ΔP_ref / (μ_agua · J_agua)).
 #   - R_f,ref(t): resistencia de ensuciamiento a la presión de referencia,
-#     obtenida del modelo de Hermia n=0 ajustado con R:28/72:
+#     obtenida del modelo de Hermia n=0 ajustado con la relación 28/72 (vuelta 2):
 #         R_f,ref(t) = ΔP_ref / (μ_LD · J_Hermia(t)) − R_M
 #     Así, a 11 psi, 20 °C y membrana limpia, el modelo reproduce EXACTAMENTE
 #     la simulación base.
@@ -49,7 +49,7 @@ V_TANQUE = 80.0                   # L
 P_MAX_FICHA_BAR = 4.0             # bar — ficha técnica del fabricante (Tabla 7 de la
                                   # tesis, RIELCO): presión máxima de alimento 0.4 MPa.
 
-# Incertidumbre a partir de las 3 réplicas de R:28/72
+# Incertidumbre a partir de las 3 réplicas de la relación 28/72 (vuelta 2)
 HERMIA_MEDIA = np.array([19.0545, 1.33995e-4])            # J0 [L/m²h], Kc
 HERMIA_COV = np.array([[3.57104788e+00, 2.79888831e-05],  # covarianza del ajuste
                        [2.79888831e-05, 3.03852765e-10]])
@@ -374,7 +374,7 @@ $$J = \frac{{\Delta P}}{{\mu\,\left(R_M + R_f\right)}}$$
 
 - $R_M$: resistencia de la membrana limpia, obtenida del flux de agua pura a {DP_REF_PSI:g} psi.
 - $R_f(t)$: resistencia del ensuciamiento (torta de proteína), obtenida del modelo de Hermia
-  ajustado con R:28/72. A la presión de referencia el modelo reproduce exactamente la simulación base.
+  ajustado con la relación permeado/rechazo 28/72 (válvula roja en la vuelta 2). A la presión de referencia el modelo reproduce exactamente la simulación base.
 
 **Efecto de la presión: torta compresible**
 

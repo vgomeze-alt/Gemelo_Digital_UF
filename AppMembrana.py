@@ -11,7 +11,8 @@ from email.message import EmailMessage
 from datetime import datetime
 
 # =============================================================================
-# GEMELO DIGITAL - MEMBRANA DE ULTRAFILTRACIÓN (Lactosuero, relación R:28/72)
+# GEMELO DIGITAL - MEMBRANA DE ULTRAFILTRACIÓN (Lactosuero, relación permeado/rechazo 28/72,
+#   es decir, válvula roja V9 en la vuelta 2)
 # Basado en el archivo original "AppBeta.py" (Banco de Intercambiadores de
 # Calor - BIC). Se conservó la misma estructura y el mismo estilo visual,
 # adaptando el contenido al proyecto de la membrana.
@@ -71,7 +72,8 @@ if "pagina" not in st.session_state:
 
 
 # =============================================================================
-# PARÁMETROS DEL MODELO (ajustados con los datos experimentales R 28/72)
+# PARÁMETROS DEL MODELO (ajustados con los datos experimentales a relación permeado/rechazo
+# 28/72: válvula roja V9 en la vuelta 2)
 # Ver archivo Excel "modelo_membrana_R2872.xlsx", hojas "Transporte",
 # "Fouling" y "Modelo_Final" para el detalle completo de cada ajuste.
 # =============================================================================
@@ -416,168 +418,9 @@ def enviar_notificacion_decision(correo_destino, nombre_usuario, tipo_practica, 
 
 @st.cache_data(show_spinner=False)
 def generar_plantilla_excel():
-    """Genera en memoria (sin tocar el disco) el Excel de plantilla que las
-    personas descargan, llenan y vuelven a subir en 'Sube tus Datos'.
-    Devuelve un BytesIO listo para st.download_button.
-    """
-    import io
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    from openpyxl.comments import Comment
-    from openpyxl.utils import get_column_letter
-
-    wb = openpyxl.Workbook()
-
-    AMARILLO = PatternFill("solid", fgColor="FFF2CC")
-    GRIS = PatternFill("solid", fgColor="F2F2F2")
-    AZUL = PatternFill("solid", fgColor="1F4E78")
-    BLANCO_BOLD = Font(bold=True, color="FFFFFF", size=11)
-    BOLD = Font(bold=True, size=11)
-    NOTA = Font(italic=True, size=9, color="808080")
-    thin = Side(style="thin", color="BFBFBF")
-    BORDE = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-    # ================= HOJA 1: INSTRUCCIONES =================
-    ws0 = wb.active
-    ws0.title = "Instrucciones"
-    ws0.sheet_view.showGridLines = False
-    ws0["B2"] = "PLANTILLA DE CARGA DE DATOS — GEMELO DIGITAL MEMBRANA DE ULTRAFILTRACIÓN"
-    ws0["B2"].font = Font(bold=True, size=14, color="1F4E78")
-    ws0["B4"] = "Cómo usar esta plantilla"
-    ws0["B4"].font = BOLD
-    instrucciones = [
-        "1. Ve a la hoja 'Datos_Practica'.",
-        "2. Llena SOLO las celdas de color AMARILLO — son las únicas que debes escribir.",
-        "3. Las celdas de color GRIS tienen fórmulas que se calculan solas (Volumen, Flux, "
-        "Concentración, etc.) — no las edites ni escribas sobre ellas.",
-        "4. Completa el bloque de identificación (integrantes, fecha, profesor, relación de "
-        "rechazo) antes de la tabla de datos.",
-        "5. Guarda el archivo con tu nombre o el del grupo (ej. Datos_Grupo3_R2872.xlsx) y "
-        "súbelo en la pestaña 'Sube tus Datos' del Gemelo Digital.",
-    ]
-    r = 5
-    for linea in instrucciones:
-        ws0.cell(row=r, column=2, value=linea).alignment = Alignment(wrap_text=True)
-        ws0.merge_cells(f"B{r}:H{r}")
-        r += 1
-    r += 1
-    ws0.cell(row=r, column=2, value="Código de colores").font = BOLD
-    r += 1
-    ws0.cell(row=r, column=2, value="Escribir aquí (dato experimental)").fill = AMARILLO
-    ws0.cell(row=r, column=2).border = BORDE
-    r += 1
-    ws0.cell(row=r, column=2, value="No tocar (fórmula automática)").fill = GRIS
-    ws0.cell(row=r, column=2).border = BORDE
-    ws0.column_dimensions["B"].width = 46
-
-    # ================= HOJA 2: DATOS_PRACTICA =================
-    ws = wb.create_sheet("Datos_Practica")
-    ws.sheet_view.showGridLines = False
-
-    ws["B2"] = "DATOS DE LA PRÁCTICA — ULTRAFILTRACIÓN DE LACTOSUERO"
-    ws["B2"].font = Font(bold=True, size=14, color="1F4E78")
-
-    campos_id = [
-        ("Integrante 1", ""),
-        ("Integrante 2", ""),
-        ("Integrante 3", ""),
-        ("Correo de contacto del grupo", ""),
-        ("Fecha de la práctica", ""),
-        ("Profesor a cargo", "Mario Andrés Noriega Valencia"),
-        ("Relación de rechazo utilizada (ej. R:28/72)", ""),
-        ("Área de membrana, A_M (m2)", 4.8),
-        ("Densidad del lactosuero (kg/L)", 1.026),
-        ("Factor de calibración (pendiente de la curva Absorbancia vs. Concentración)", ""),
-    ]
-    r = 4
-    for etiqueta, valor_default in campos_id:
-        ws.cell(row=r, column=2, value=etiqueta).font = BOLD
-        ws.merge_cells(f"B{r}:D{r}")
-        c = ws.cell(row=r, column=5, value=valor_default)
-        c.fill = AMARILLO
-        c.border = BORDE
-        ws.merge_cells(f"E{r}:F{r}")
-        r += 1
-
-    ws.cell(row=r+1, column=2,
-            value="Factor de calibración: si tu curva es Concentración = m×Absorbancia + b, "
-                  "escribe aquí la pendiente 'm'. Pregunta a tu profesor si no la tienes.").font = NOTA
-    ws.merge_cells(f"B{r+1}:H{r+1}")
-    ws.cell(row=r+1, column=2).alignment = Alignment(wrap_text=True)
-
-    fila_factor_calibracion = 13  # Área en fila 11, Densidad en fila 12, Factor en fila 13
-    fila_area = 11
-    fila_densidad = 12
-
-    r_tabla_header = r + 3
-    encabezados = [
-        "Tiempo (min)", "Masa Permeado (kg)", "Masa Rechazo (kg)",
-        "Absorbancia Permeado (u.a.)", "Absorbancia Rechazo (u.a.)", "Absorbancia Tanque (u.a.)",
-        "Volumen Permeado (L)", "Flujo Volumétrico Q (L/min)", "Flux J (L/m2·h)",
-        "Concentración Tanque (g/L)",
-    ]
-    for j, h in enumerate(encabezados):
-        c = ws.cell(row=r_tabla_header, column=2+j, value=h)
-        c.fill = AZUL
-        c.font = BLANCO_BOLD
-        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        c.border = BORDE
-
-    tiempos = [0, 8, 16, 24, 32, 40]
-    r0 = r_tabla_header + 1
-    for i, t in enumerate(tiempos):
-        rr = r0 + i
-        ws.cell(row=rr, column=2, value=t).fill = AMARILLO
-        for col in (3, 4, 5, 6, 7):
-            ws.cell(row=rr, column=col, value=None).fill = AMARILLO
-
-        ws.cell(row=rr, column=8,
-                value=f"=IF(C{rr}=\"\",\"\",C{rr}/$E${fila_densidad})").fill = GRIS
-        ws.cell(row=rr, column=9,
-                value=f"=IF(OR(H{rr}=\"\",B{rr}=0),\"\",H{rr}/B{rr})").fill = GRIS
-        ws.cell(row=rr, column=10,
-                value=f"=IF(I{rr}=\"\",\"\",I{rr}*60/$E${fila_area})").fill = GRIS
-        ws.cell(row=rr, column=11,
-                value=f"=IF(G{rr}=\"\",\"\",G{rr}*$E${fila_factor_calibracion})").fill = GRIS
-
-        for col in range(2, 12):
-            ws.cell(row=rr, column=col).border = BORDE
-
-    ws.cell(row=r0, column=3).comment = Comment(
-        "Masa acumulada de permeado recolectada hasta este tiempo, en kilogramos.", "Gemelo Digital UF")
-    ws.cell(row=r0, column=4).comment = Comment(
-        "Masa acumulada de rechazo (retenido) hasta este tiempo, en kilogramos.", "Gemelo Digital UF")
-    ws.cell(row=r0, column=5).comment = Comment(
-        "Lectura de absorbancia UV del permeado (adimensional, unidades arbitrarias).", "Gemelo Digital UF")
-    ws.cell(row=r0, column=8).comment = Comment(
-        "Se calcula solo: Volumen = Masa Permeado / Densidad del lactosuero.", "Gemelo Digital UF")
-    ws.cell(row=r0, column=10).comment = Comment(
-        "Se calcula solo: Flux = Q(L/min) * 60 / Área de membrana (m2). Esta es la variable "
-        "clave para comparar con el modelo del Gemelo Digital.", "Gemelo Digital UF")
-
-    ws.column_dimensions["B"].width = 14
-    for col in "CDEFGHIJK":
-        ws.column_dimensions[col].width = 16
-    ws.freeze_panes = f"B{r0}"
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    return buf.getvalue()  # bytes: se pueden cachear sin problemas
-
-# =============================================================================
-# PÁGINAS
-# =============================================================================
-
-def inicio():
-    st.write("# Bienvenido al Gemelo Digital de la Membrana de Ultrafiltración")
-    st.text(
-        "Un gemelo digital del proceso de ultrafiltración de lactosuero (membrana, "
-        "relación de rechazo), desarrollado a partir de datos experimentales "
-        "para aprender, enseñar y explorar el comportamiento del proceso sin necesidad "
-        "de operar el equipo real."
-    )
-    st.write("## Instructivo del Gemelo Digital")
-    st.video("https://youtu.be/78Ob75mh4x8")
+    """Plantilla de Excel que los grupos descargan, llenan y suben (ver plantilla_uf.py)."""
+    from plantilla_uf import construir_plantilla
+    return construir_plantilla()
 
 
 def informacion_general():
@@ -751,7 +594,7 @@ def informacion_general():
             "corresponden a la descripción general del equipo y la práctica de "
             "laboratorio. Los parámetros que efectivamente usa el modelo matemático "
             "de la pestaña \"Simulación\" (K, J0, Kc, C0≈7.4 g/L) se ajustaron con "
-            "los datos experimentales R:28/72 — ver la pestaña \"Guía de Usuario\" "
+            "los datos experimentales de la relación permeado/rechazo 28/72 (válvula roja en la vuelta 2) — ver la pestaña \"Guía de Usuario\" "
             "para el detalle."
         )
 
@@ -915,7 +758,7 @@ def simulacion():
     st.write("# Simulación")
     modo = st.radio(
         "Tipo de simulación",
-        ["Simulación base (datos R:28/72)", "Presión y Montecarlo 🎲"],
+        ["Simulación base (datos de la práctica estándar)", "Presión y Montecarlo 🎲"],
         horizontal=True,
         help="La simulación base usa los modelos ajustados con los datos de laboratorio. "
              "El modo de presión explora qué pasa al cambiar la presión, la membrana o la "
@@ -926,8 +769,9 @@ def simulacion():
         pagina_presion(PARAMS)
         return
     st.markdown(
-        "Modelo del proceso de ultrafiltración ajustado con datos experimentales "
-        "**R:28/72**. Elige qué fluido se hace circular por la membrana, define "
+        "Modelo del proceso de ultrafiltración ajustado con los datos experimentales "
+        "de la práctica estándar: **relación permeado/rechazo 28/72** (válvula roja en la vuelta 2: 28 % del caudal sale como permeado y 72 % como rechazo). "
+        "Elige qué fluido se hace circular por la membrana, define "
         "las condiciones de operación y observa los resultados."
     )
 
@@ -1403,7 +1247,8 @@ def guia_usuario():
     - $t$: tiempo de proceso [min]
 
     $K$ se estimó por regresión lineal (mínimos cuadrados) sobre los datos
-    experimentales R:28/72, excluyendo un punto identificado como atípico
+    experimentales de la relación permeado/rechazo 28/72 (válvula roja en la vuelta 2:
+    28 % del caudal sale como permeado y 72 % como rechazo), excluyendo un punto atípico
     (t = 8 min), obteniendo:
 
     $$
@@ -1468,40 +1313,45 @@ def datos():
     st.write("# Sube tus Datos")
     st.markdown(
         "Si cuentas con datos experimentales propios de ultrafiltración (otra "
-        "relación de rechazo, otra membrana u otras condiciones), puedes usarlos "
+        "vuelta de la válvula roja, otra membrana u otras condiciones), puedes usarlos "
         "para complementar o recalibrar el modelo."
     )
 
-    practica = st.selectbox(
-        "Seleccione el tipo de datos con el cual va a alimentar el Gemelo Digital:",
-        [
-            "Ultrafiltración - Relación de rechazo R:28/72",
-            "Ultrafiltración - Otra relación de rechazo",
-        ]
+    from plantilla_uf import TABLA_VALVULA, descripcion_vuelta
+    vuelta = st.selectbox(
+        "¿En qué vuelta dejaste la válvula roja trasera (V9)?",
+        list(TABLA_VALVULA),
+        index=2,
+        format_func=lambda v: descripcion_vuelta(v) + ("  (práctica estándar)" if v == 2 else ""),
+        help="La relación permeado/rechazo indica qué porcentaje del caudal de "
+             "alimentación sale como permeado y cuál como rechazo; se fija con la vuelta "
+             "de la válvula roja. Ej.: vuelta 2 = 28/72 → 28 % permeado y 72 % rechazo.",
     )
+    _p, _r = TABLA_VALVULA[vuelta]
+    practica = f"Ultrafiltración - Vuelta {vuelta} de la válvula V9 (permeado/rechazo {_p}/{_r})"
 
     ejemplo = pd.DataFrame({
-        "Tiempo (min)": [0, 8, 16, 24, 32, 40, "..."],
-        "Masa de Permeado (kg)": [0, "...", "...", "...", "...", "...", "..."],
-        "Masa de Rechazo (kg)": [0, "...", "...", "...", "...", "...", "..."],
-        "Absorbancia Permeado (u.a.)": ["-", "...", "...", "...", "...", "...", "..."],
-        "Absorbancia Rechazo (u.a.)": ["-", "...", "...", "...", "...", "...", "..."],
-        "Absorbancia Tanque (u.a.)": ["...", "...", "...", "...", "...", "...", "..."],
+        "Tiempo (min)": [0, 8, 16, "…", 40],
+        "Peso acumulado permeado (kg)": [0, 9.75, 14.90, "…", 26.15],
+        "Peso bruto tanque alimentación (kg)": [87.50, 76.70, 71.40, "…", 60.00],
+        "Presiones, °Brix y absorbancias": ["…", "…", "…", "…", "…"],
     })
 
     st.write("### Ejemplo del formato esperado")
     st.table(ejemplo)
     st.caption(
-        "Formato basado en la estructura de la Hoja 1 ('R 28-72') del archivo Excel "
-        "del modelo. Se recomiendan al menos 3 réplicas por variable y por tiempo."
+        "Valores de ejemplo tomados de una réplica real a la vuelta 2 (relación 28/72). "
+        "La plantilla calcula sola el volumen de permeado, el flux, el volumen en el "
+        "tanque, la concentración de proteína y el coeficiente de rechazo."
     )
 
     st.subheader("1. Descarga la plantilla")
     st.markdown(
-        "Descarga este Excel, complétalo (integrantes del grupo, fecha, profesor a "
-        "cargo y los datos medidos) y luego súbelo en el paso 2. Las celdas amarillas "
-        "son las únicas que debes llenar; las grises ya traen las fórmulas de Volumen, "
-        "Flujo, Flux y Concentración calculadas automáticamente."
+        "Descarga este Excel y complétalo en el laboratorio: identificación del grupo, "
+        "la **vuelta de la válvula roja** (la relación permeado/rechazo se calcula sola), "
+        "los pesos cada 8 minutos, las presiones, los °Brix y las absorbancias. Solo se "
+        "llenan las celdas amarillas; las grises tienen fórmulas protegidas. Trae una "
+        "gráfica del flux para revisar tus datos antes de subirlos."
     )
     plantilla_bytes = generar_plantilla_excel()
     st.download_button(
