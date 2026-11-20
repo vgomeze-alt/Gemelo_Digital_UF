@@ -423,6 +423,22 @@ def generar_plantilla_excel():
     return construir_plantilla()
 
 
+# =============================================================================
+# PÁGINAS
+# =============================================================================
+
+def inicio():
+    st.write("# Bienvenido al Gemelo Digital de la Membrana de Ultrafiltración")
+    st.text(
+        "Un gemelo digital del proceso de ultrafiltración de lactosuero (membrana, "
+        "relación permeado/rechazo), desarrollado a partir de datos experimentales "
+        "para aprender, enseñar y explorar el comportamiento del proceso sin necesidad "
+        "de operar el equipo real."
+    )
+    st.write("## Instructivo del Gemelo Digital")
+    st.video("https://youtu.be/78Ob75mh4x8")
+
+
 def informacion_general():
     st.write("# Información General")
     st.write("### Entender la membrana antes de entender el gemelo digital")
