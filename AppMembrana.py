@@ -666,7 +666,7 @@ def informacion_general():
             <ul>
             <li><b>Volumen de operación estándar:</b> 80 litros de lactosuero reconstituido
             en el tanque de alimentación.</li>
-            <li><b>Densidad del fluido:</b> 1.026 g/cm³ (valor de densidad del lactosuero
+            <li><b>Densidad del fluido:</b> 1.0208 g/cm³ (valor de densidad del lactosuero
             empleado para transformar pesos en volumen real).</li>
             <li><b>Área de transferencia:</b> 4.8 m² correspondientes al diseño físico de la
             membrana instalada.</li>
