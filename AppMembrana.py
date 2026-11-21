@@ -1251,10 +1251,35 @@ def documentacion():
         coincidencias = glob.glob(patron)
         return coincidencias[0] if coincidencias else None
 
+    RUTA_GUIA = os.path.join(CARPETA_DOCS, "Guia_Gemelo_Digital_UF.pdf")
+
+    def mostrar_pdf(pdf_bytes, nombre, etiqueta):
+        """Muestra el PDF dentro de la página y deja el botón de descarga."""
+        try:
+            st.pdf(pdf_bytes, height=850)
+        except Exception:
+            import base64
+            import streamlit.components.v1 as components
+            b64 = base64.b64encode(pdf_bytes).decode()
+            st.info("No se pudo mostrar el PDF dentro de la página. Ábrelo en una pestaña nueva "
+                    "o descárgalo con los botones de abajo.")
+            components.html(f"""
+                <button id="abrir" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;
+                        background:#fff;cursor:pointer;font-size:15px">📖 Abrir en una pestaña nueva</button>
+                <script>
+                document.getElementById("abrir").onclick = () => {{
+                  const bin = atob("{b64}"); const u = new Uint8Array(bin.length);
+                  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+                  window.open(URL.createObjectURL(new Blob([u], {{type: "application/pdf"}})), "_blank");
+                }};
+                </script>""", height=60)
+        st.download_button(label=f"📥 Descargar {etiqueta} (PDF)", data=pdf_bytes, file_name=nombre,
+                           mime="application/pdf", width="stretch")
+
     if "doc_actual" not in st.session_state:
         st.session_state.doc_actual = None
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         if st.button("Manual de Operación", width="stretch"):
@@ -1264,6 +1289,10 @@ def documentacion():
         if st.button("Diagramas de Flujo", width="stretch"):
             st.session_state.doc_actual = "diagramas"
 
+    with col3:
+        if st.button("📖 Guía del Gemelo Digital", width="stretch"):
+            st.session_state.doc_actual = "guia"
+
     # ------------------------------------------------------------------ INICIO
     if st.session_state.doc_actual is None:
         st.info(
@@ -1271,8 +1300,9 @@ def documentacion():
             "ultrafiltración: el **Manual de Operación** (PDF descargable con "
             "el procedimiento paso a paso) y los **Diagramas de Flujo** del "
             "proceso (preparación del lactosuero, purga/limpieza de líneas y "
-            "procedimiento de la práctica). Elige una de las dos opciones de "
-            "arriba para verla."
+            "procedimiento de la práctica) y la **Guía del Gemelo Digital**, "
+            "que explica qué encontrarás en cada sección de la página y cómo "
+            "usarla. Elige una de las opciones de arriba para verla."
         )
 
     # ------------------------------------------------------------------ MANUAL
@@ -1281,25 +1311,10 @@ def documentacion():
         if ruta_manual:
             with open(ruta_manual, "rb") as f:
                 pdf_bytes = f.read()
-            try:
-                st.pdf(pdf_bytes)
-            except Exception:
-                st.info(
-                    "El visor de PDF integrado no está disponible en esta "
-                    "instalación. Puedes descargar el manual con el botón de "
-                    "abajo. (Para verlo aquí mismo, instala el componente con: "
-                    "pip install \"streamlit[pdf]\")"
-                )
             nombre_descarga = os.path.basename(ruta_manual)
             if not nombre_descarga.lower().endswith(".pdf"):
                 nombre_descarga = NOMBRE_BASE_MANUAL + ".pdf"
-            st.download_button(
-                label="📥 Descargar Manual (PDF)",
-                data=pdf_bytes,
-                file_name=nombre_descarga,
-                mime="application/pdf",
-                width="stretch"
-            )
+            mostrar_pdf(pdf_bytes, nombre_descarga, "Manual")
         else:
             st.warning(
                 f"No se encontró ningún archivo que empiece por "
@@ -1310,6 +1325,17 @@ def documentacion():
                 st.code("\n".join(os.listdir(CARPETA_DOCS)) or "(carpeta vacía)")
             else:
                 st.caption("La carpeta indicada no existe o no es accesible.")
+
+    # -------------------------------------------------------------------- GUÍA
+    elif st.session_state.doc_actual == "guia":
+        st.subheader("Guía del Gemelo Digital")
+        st.caption("Qué encontrarás en cada sección de la página y cómo usarla. El índice tiene enlaces: "
+                   "haz clic en una sección para ir directamente a ella.")
+        if os.path.isfile(RUTA_GUIA):
+            with open(RUTA_GUIA, "rb") as f:
+                mostrar_pdf(f.read(), "Guia_Gemelo_Digital_UF.pdf", "Guía")
+        else:
+            st.warning(f"No se encontró la guía en {RUTA_GUIA}.")
 
     # --------------------------------------------------------------- DIAGRAMAS
     elif st.session_state.doc_actual == "diagramas":
